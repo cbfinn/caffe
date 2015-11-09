@@ -981,9 +981,6 @@ void Net<Dtype>::ToHDF5(const string& filename, bool write_diff) const {
 
 template <typename Dtype>
 void Net<Dtype>::Update() {
-<<<<<<< HEAD
-  // Update only the owned parameters.
-=======
   for (int i = 0; i < learnable_params_.size(); ++i) {
     learnable_params_[i]->Update();
   }
@@ -1012,16 +1009,6 @@ void Net<Dtype>::ClearParamDiffs() {
 
 template <typename Dtype>
 void Net<Dtype>::ShareWeights() {
->>>>>>> master
-  for (int i = 0; i < params_.size(); ++i) {
-    if (param_owners_[i] < 0) { continue; }
-    params_[i]->ShareData(*params_[param_owners_[i]]);
-    params_[i]->ShareDiff(*params_[param_owners_[i]]);
-  }
-}
-
-template <typename Dtype>
-void Net<Dtype>::ShareWeightData() {
   for (int i = 0; i < params_.size(); ++i) {
     if (param_owners_[i] < 0) { continue; }
     params_[i]->ShareData(*params_[param_owners_[i]]);

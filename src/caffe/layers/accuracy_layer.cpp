@@ -1,9 +1,12 @@
+#include <algorithm>
 #include <functional>
 #include <utility>
 #include <vector>
 
-#include "caffe/loss_layers.hpp"
+#include "caffe/layer.hpp"
+#include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
+#include "caffe/vision_layers.hpp"
 
 namespace caffe {
 
@@ -50,33 +53,6 @@ void AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   Dtype accuracy = 0;
   const Dtype* bottom_data = bottom[0]->cpu_data();
   const Dtype* bottom_label = bottom[1]->cpu_data();
-<<<<<<< HEAD
-  int num = bottom[1]->count();
-  int dim = bottom[0]->count() / num;
-  vector<Dtype> maxval(top_k_+1);
-  vector<int> max_id(top_k_+1);
-  int count = 0;
-  for (int i = 0; i < num; ++i) {
-    // Top-k accuracy
-    std::vector<std::pair<Dtype, int> > bottom_data_vector;
-    for (int j = 0; j < dim; ++j) {
-      bottom_data_vector.push_back(
-          std::make_pair(bottom_data[i * dim + j], j));
-    }
-    std::partial_sort(
-        bottom_data_vector.begin(), bottom_data_vector.begin() + top_k_,
-        bottom_data_vector.end(), std::greater<std::pair<Dtype, int> >());
-    // check if true label is in top k predictions
-    const int label_value = static_cast<int>(bottom_label[i]);
-    if (has_ignore_label_ && label_value == ignore_label_) {
-      continue;
-    }
-    ++count;
-    for (int k = 0; k < top_k_; k++) {
-      if (bottom_data_vector[k].second == label_value) {
-        ++accuracy;
-        break;
-=======
   const int dim = bottom[0]->count() / outer_num_;
   const int num_labels = bottom[0]->shape(label_axis_);
   vector<Dtype> maxval(top_k_+1);
@@ -112,8 +88,12 @@ void AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
           if (top.size() > 1) ++top[1]->mutable_cpu_data()[label_value];
           break;
         }
-  const Dtype denominator = (denominator_ == 0) ? count : denominator_;
-  top[0]->mutable_cpu_data()[0] = accuracy / denominator;
+      }
+      ++count;
+    }
+  }
+
+  // LOG(INFO) << "Accuracy: " << accuracy;
   top[0]->mutable_cpu_data()[0] = accuracy / count;
   if (top.size() > 1) {
     for (int i = 0; i < top[1]->count(); ++i) {

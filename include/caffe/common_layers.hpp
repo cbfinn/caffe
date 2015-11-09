@@ -209,45 +209,6 @@ class BatchReindexLayer : public Layer<Dtype> {
 };
 
 /**
-* @brief Batch Normalization per-channel with scale & shift linear transform.
-*
-*/
-
-template <typename Dtype>
-class BatchNormLayer : public Layer<Dtype> {
- public:
-  explicit BatchNormLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
-  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-
-  virtual inline const char* type() const { return "BatchNorm"; }
-  virtual inline int ExactNumBottomBlobs() const { return 1; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
-
- protected:
-  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-
-  int channels_;
-  bool use_global_stats_;
-  Dtype moving_average_fraction_;
-  Blob<Dtype> mean_, variance_, temp_, num_sum_, num_by_chans_;
-
-  /// sum_multiplier is used to carry out sum using BLAS
-  Blob<Dtype> sum_multiplier_;
-
-};
-
-/**
  * @brief Takes at least two Blob%s and concatenates them along either the num
  *        or channel dimension, outputting the result.
  */
@@ -662,53 +623,6 @@ class ReductionLayer : public Layer<Dtype> {
   int dim_;
   /// @brief a helper Blob used for summation (op_ == SUM)
   Blob<Dtype> sum_multiplier_;
-};
-
-/**
- * @brief Reshapes an input Blob.
- */
-template <typename Dtype>
-class ReshapeLayer : public Layer<Dtype> {
- public:
-  explicit ReshapeLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
-  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-
-  virtual inline const char* type() const { return "Reshape"; }
-  virtual inline int ExactNumBottomBlobs() const { return 1; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
-
- protected:
-  /**
-   * @param bottom input Blob vector (length 1)
-   *   -# @f$ (D_1 \times D_2 \times ... \times D_m) @f$
-   *      the inputs
-   * @param top output Blob vector (length 1)
-   *   -# @f$ (d_1 \times d_2 \times ... \times d_n) @f$,
-   *      the outputs -- i.e., the (virtually) copied inputs.
-   *      The shape is specified by <code>reshape_param.shape()</code>, and the
-   *      product of the dimensions in the new shape must match that of the
-   *      input shape; i.e., @f$ d_1 d_2 ... d_n = D_1 D_2 ... D_m @f$.
-   */
-  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top) {}
-  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top) {}
-
-  /**
-   * @brief Computes the error gradient w.r.t. the concatenate inputs.
-   *
-   * @param top output Blob vector (length 1), providing the error gradient with
-   *        respect to the outputs
-   * @param propagate_down see Layer::Backward.
-   * @param bottom input Blob vector (length K), into which the top error
-   *        gradient is (virtually) copied
-   */
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
-  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
 };
 
 /**

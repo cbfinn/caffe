@@ -174,22 +174,6 @@ shared_ptr<Layer<Dtype> > GetSoftmaxLayer(const LayerParameter& param) {
 
 REGISTER_LAYER_CREATOR(Softmax, GetSoftmaxLayer);
 
-template <typename Dtype>
-shared_ptr<Layer<Dtype> > GetSoftmaxOldLayer(const LayerParameter& param) {
-  SoftmaxOldParameter_Engine engine = param.softmaxold_param().engine();
-  if (engine == SoftmaxOldParameter_Engine_DEFAULT) {
-    engine = SoftmaxOldParameter_Engine_CAFFE;
-
-  }
-  if (engine == SoftmaxOldParameter_Engine_CAFFE) {
-    return shared_ptr<Layer<Dtype> >(new SoftmaxOldLayer<Dtype>(param));
-  } else {
-    LOG(FATAL) << "Layer " << param.name() << " has unknown engine.";
-  }
-}
-
-REGISTER_LAYER_CREATOR(SoftmaxOld, GetSoftmaxOldLayer);
-
 // Get tanh layer according to engine.
 template <typename Dtype>
 shared_ptr<Layer<Dtype> > GetTanHLayer(const LayerParameter& param) {
