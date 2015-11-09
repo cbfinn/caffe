@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "caffe/blob.hpp"
-#include "caffe/common.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/neuron_layers.hpp"
 #include "caffe/proto/caffe.pb.h"
@@ -39,7 +38,11 @@ class AccuracyLayer : public Layer<Dtype> {
 
   virtual inline const char* type() const { return "Accuracy"; }
   virtual inline int ExactNumBottomBlobs() const { return 2; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
+
+  // If there are two top blobs, then the second blob will contain
+  // accuracies per class.
+  virtual inline int MinTopBlobs() const { return 1; }
+  virtual inline int MaxTopBlos() const { return 2; }
 
  protected:
   /**
@@ -77,15 +80,18 @@ class AccuracyLayer : public Layer<Dtype> {
       if (propagate_down[i]) { NOT_IMPLEMENTED; }
     }
   }
+  int label_axis_, outer_num_, inner_num_;
 
-  /// Whether to ignore instances with a certain label
+  int top_k_;
+
+  /// Whether to ignore instances with a certain label.
   bool has_ignore_label_;
   /// The label indicating that an instance should be ignored.
   int ignore_label_;
-
-  int top_k_;
-  Dtype denominator_;
+  /// Keeps counts of the number of samples per class.
+  Blob<Dtype> nums_buffer_;
 };
+
 
 /**
  * @brief Computes the average distance for a position estimation
@@ -182,9 +188,9 @@ class LossLayer : public Layer<Dtype> {
 /**
  * @brief Computes the contrastive loss @f$
  *          E = \frac{1}{2N} \sum\limits_{n=1}^N \left(y\right) d +
- *              \left(1-y\right) \max \left(margin-d, 0\right)
+ *              \left(1-y\right) \max \left(margin-d, 0\right)^2
  *          @f$ where @f$
- *          d = \left| \left| a_n - b_n \right| \right|_2^2 @f$. This can be
+ *          d = \left| \left| a_n - b_n \right| \right|_2 @f$. This can be
  *          used to train siamese networks.
  *
  * @param bottom input Blob vector (length 3)
@@ -198,9 +204,9 @@ class LossLayer : public Layer<Dtype> {
  *   -# @f$ (1 \times 1 \times 1 \times 1) @f$
  *      the computed contrastive loss: @f$ E =
  *          \frac{1}{2N} \sum\limits_{n=1}^N \left(y\right) d +
- *          \left(1-y\right) \max \left(margin-d, 0\right)
+ *          \left(1-y\right) \max \left(margin-d, 0\right)^2
  *          @f$ where @f$
- *          d = \left| \left| a_n - b_n \right| \right|_2^2 @f$.
+ *          d = \left| \left| a_n - b_n \right| \right|_2 @f$.
  * This can be used to train siamese networks.
  */
 template <typename Dtype>
@@ -819,8 +825,6 @@ class SigmoidCrossEntropyLossLayer : public LossLayer<Dtype> {
   /// @copydoc SigmoidCrossEntropyLossLayer
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
-  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
 
   /**
    * @brief Computes the sigmoid cross-entropy loss error gradient w.r.t. the
@@ -922,7 +926,6 @@ class SoftmaxWithLossLayer : public LossLayer<Dtype> {
   virtual inline int MaxTopBlobs() const { return 2; }
 
  protected:
-  /// @copydoc SoftmaxWithLossLayer
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
   virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,

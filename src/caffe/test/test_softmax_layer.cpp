@@ -1,13 +1,12 @@
 #include <cmath>
-#include <cstring>
 #include <vector>
 
 #include "gtest/gtest.h"
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
+#include "caffe/common_layers.hpp"
 #include "caffe/filler.hpp"
-#include "caffe/vision_layers.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 #include "caffe/test/test_gradient_check_util.hpp"
@@ -82,7 +81,7 @@ TYPED_TEST(SoftmaxLayerTest, TestGradient) {
 
 #ifdef USE_CUDNN
 template <typename Dtype>
-class CuDNNSoftmaxLayerTest : public ::testing::Test {
+class CuDNNSoftmaxLayerTest : public GPUDeviceTest<Dtype> {
  protected:
   CuDNNSoftmaxLayerTest()
       : blob_bottom_(new Blob<Dtype>(2, 10, 2, 3)),
@@ -104,7 +103,6 @@ class CuDNNSoftmaxLayerTest : public ::testing::Test {
 TYPED_TEST_CASE(CuDNNSoftmaxLayerTest, TestDtypes);
 
 TYPED_TEST(CuDNNSoftmaxLayerTest, TestForwardCuDNN) {
-  Caffe::set_mode(Caffe::GPU);
   LayerParameter layer_param;
   CuDNNSoftmaxLayer<TypeParam> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
@@ -138,7 +136,6 @@ TYPED_TEST(CuDNNSoftmaxLayerTest, TestForwardCuDNN) {
 }
 
 TYPED_TEST(CuDNNSoftmaxLayerTest, TestGradientCuDNN) {
-  Caffe::set_mode(Caffe::GPU);
   LayerParameter layer_param;
   CuDNNSoftmaxLayer<TypeParam> layer(layer_param);
   GradientChecker<TypeParam> checker(1e-2, 1e-3);

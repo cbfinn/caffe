@@ -1,10 +1,7 @@
-#include <algorithm>
-#include <cfloat>
 #include <vector>
 
-#include "caffe/layer.hpp"
+#include "caffe/loss_layers.hpp"
 #include "caffe/util/math_functions.hpp"
-#include "caffe/vision_layers.hpp"
 
 namespace caffe {
 
@@ -71,7 +68,7 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Backward_cpu(
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(SigmoidCrossEntropyLossLayer);
+STUB_GPU_BACKWARD(SigmoidCrossEntropyLossLayer, Backward);
 #endif
 
 INSTANTIATE_CLASS(SigmoidCrossEntropyLossLayer);

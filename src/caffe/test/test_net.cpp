@@ -288,6 +288,7 @@ class NetTest : public MultiDeviceTest<TypeParam> {
       const bool force_backward = false, const bool bias_term = false,
       const Dtype blobs_lr_w1 = 1, const Dtype blobs_lr_b1 = 2,
       const Dtype blobs_lr_w2 = 1, const Dtype blobs_lr_b2 = 2) {
+    string bias_str = bias_term ? "true ":"false ";
     ostringstream proto;
     proto << "name: 'UnsharedWeightsNetwork' ";
     if (force_backward) {
@@ -314,7 +315,7 @@ class NetTest : public MultiDeviceTest<TypeParam> {
         "  type: 'InnerProduct' "
         "  inner_product_param { "
         "    num_output: 10 "
-        "    bias_term: " << bias_term <<
+        "    bias_term: " << bias_str <<
         "    weight_filler { "
         "      type: 'gaussian' "
         "      std: 10 "
@@ -340,7 +341,7 @@ class NetTest : public MultiDeviceTest<TypeParam> {
         "  type: 'InnerProduct' "
         "  inner_product_param { "
         "    num_output: 10 "
-        "    bias_term: " << bias_term <<
+        "    bias_term: " << bias_str <<
         "    weight_filler { "
         "      type: 'gaussian' "
         "      std: 10 "
@@ -610,6 +611,105 @@ class NetTest : public MultiDeviceTest<TypeParam> {
         "  bottom: 'norm1' "
         "  top: 'softmax' "
         "} ";
+    InitNetFromProtoString(proto);
+  }
+
+  virtual void InitSkipPropNet(bool test_skip_true) {
+    string proto =
+      "name: 'SkipPropTestNetwork' "
+      "layer { "
+      "  name: 'data' "
+      "  type: 'DummyData' "
+      "  dummy_data_param { "
+      "    shape { "
+      "      dim: 5 "
+      "      dim: 2 "
+      "      dim: 3 "
+      "      dim: 4 "
+      "    } "
+      "    data_filler { "
+      "      type: 'gaussian' "
+      "      std: 0.01 "
+      "    } "
+      "    shape { "
+      "      dim: 5 "
+      "    } "
+      "    data_filler { "
+      "      type: 'constant' "
+      "      value: 0 "
+      "    } "
+      "  } "
+      "  top: 'data' "
+      "  top: 'label' "
+      "} "
+      "layer { "
+      "  name: 'silence' "
+      "  bottom: 'label' "
+      "  type: 'Silence' "
+      "} "
+      "layer { "
+      "  name: 'innerproduct' "
+      "  type: 'InnerProduct' "
+      "  inner_product_param { "
+      "    num_output: 1 "
+      "    weight_filler { "
+      "      type: 'gaussian' "
+      "      std: 0.01 "
+      "    } "
+      "    bias_filler { "
+      "      type: 'constant' "
+      "      value: 0 "
+      "    } "
+      "  } "
+      "  param { "
+      "    lr_mult: 1 "
+      "    decay_mult: 1 "
+      "  } "
+      "  param { "
+      "    lr_mult: 2 "
+      "    decay_mult: 0 "
+      "  } "
+      "  bottom: 'data' "
+      "  top: 'innerproduct' "
+      "} "
+      "layer { "
+      "  name: 'ip_fake_labels' "
+      "  type: 'InnerProduct' "
+      "  inner_product_param { "
+      "    num_output: 1 "
+      "    weight_filler { "
+      "      type: 'gaussian' "
+      "      std: 0.01 "
+      "    } "
+      "    bias_filler { "
+      "      type: 'constant' "
+      "      value: 0 "
+      "    } "
+      "  } "
+      "  bottom: 'data' "
+      "  top: 'fake_labels' "
+      "} "
+      "layer { "
+      "  name: 'argmax' "
+      "  bottom: 'fake_labels' "
+      "  top: 'label_argmax' "
+      "  type: 'ArgMax' "
+      "} "
+      "layer { "
+      "  name: 'loss' "
+      "  bottom: 'innerproduct' "
+      "  bottom: 'label_argmax' ";
+    if (test_skip_true)
+      proto += "  propagate_down: true "
+               "  propagate_down: false ";
+    else
+      proto += "  propagate_down: true "
+               "  propagate_down: true ";
+    proto +=
+      "  top: 'cross_entropy_loss' "
+      "  type: 'SigmoidCrossEntropyLoss' "
+      "  loss_weight: 0.1 "
+      "} ";
     InitNetFromProtoString(proto);
   }
 
@@ -2162,15 +2262,17 @@ TEST_F(FilterNetTest, TestFilterInOutByExcludeMultiRule) {
 TYPED_TEST(NetTest, TestReshape) {
   typedef typename TypeParam::Dtype Dtype;
   // We set up bottom blobs of two different sizes, switch between
-  // them, and check that forward and backward both run and the results
-  // are the same.
+  // them, check that forward and backward both run and the results
+  // are the same, and check that the output shapes change.
   Caffe::set_random_seed(this->seed_);
   Caffe::set_mode(Caffe::CPU);
   FillerParameter filler_param;
   filler_param.set_std(1);
   GaussianFiller<Dtype> filler(filler_param);
-  Blob<Dtype> blob1(4, 3, 9, 11);
-  Blob<Dtype> blob2(2, 3, 12, 10);
+  // Check smaller shape first as larger first could hide realloc failures.
+  Blob<Dtype> blob1(2, 3, 12, 10);
+  Blob<Dtype> blob2(4, 3, 9, 11);
+  ASSERT_LT(blob1.count(), blob2.count());
   filler.Fill(&blob1);
   filler.Fill(&blob2);
 
@@ -2204,7 +2306,7 @@ TYPED_TEST(NetTest, TestReshape) {
   this->net_->ForwardPrefilled();
   this->net_->Backward();
   for (int i = 0; i < output1.count(); ++i) {
-    CHECK_EQ(*(output1.cpu_data() + i), *(output_blob->cpu_data() + i));
+    EXPECT_FLOAT_EQ(*(output1.cpu_data() + i), *(output_blob->cpu_data() + i));
   }
 
   input_blob->Reshape(blob2.num(), blob2.channels(), blob2.height(),
@@ -2213,7 +2315,67 @@ TYPED_TEST(NetTest, TestReshape) {
   this->net_->ForwardPrefilled();
   this->net_->Backward();
   for (int i = 0; i < output2.count(); ++i) {
-    CHECK_EQ(*(output2.cpu_data() + i), *(output_blob->cpu_data() + i));
+    EXPECT_FLOAT_EQ(*(output2.cpu_data() + i), *(output_blob->cpu_data() + i));
+  }
+
+  EXPECT_EQ(output1.num(), blob1.num());
+  EXPECT_EQ(output2.num(), blob2.num());
+  bool same_spatial_shape = true;
+  const int kFirstSpatialAxis = 2;
+  for (int i = kFirstSpatialAxis; i < output1.num_axes(); ++i) {
+    if (output1.shape(i) != output2.shape(i)) {
+      same_spatial_shape = false;
+      break;
+    }
+  }
+  EXPECT_FALSE(same_spatial_shape);
+}
+
+TYPED_TEST(NetTest, TestSkipPropagateDown) {
+  // check bottom_need_backward if propagate_down is true
+  this->InitSkipPropNet(false);
+  vector<bool> vec_layer_need_backward = this->net_->layer_need_backward();
+  for (int layer_id = 0; layer_id < this->net_->layers().size(); ++layer_id) {
+    string layer_name = this->net_->layer_names()[layer_id];
+    if (layer_name == "loss") {
+      // access to bottom_need_backward coresponding to label's blob
+      bool need_back = this->net_->bottom_need_backward()[layer_id][1];
+      // if propagate_down is true, the loss layer will try to
+      // backpropagate on labels
+      EXPECT_TRUE(need_back) << "bottom_need_backward should be True";
+    }
+    // layer_need_backward should be True except for data and silence layers
+    if (layer_name.find("data") != std::string::npos ||
+          layer_name == "silence") {
+      EXPECT_FALSE(vec_layer_need_backward[layer_id])
+          << "layer_need_backward for " << layer_name << " should be False";
+    } else {
+      EXPECT_TRUE(vec_layer_need_backward[layer_id])
+          << "layer_need_backward for " << layer_name << " should be True";
+    }
+  }
+  // check bottom_need_backward if propagat_down is false
+  this->InitSkipPropNet(true);
+  vec_layer_need_backward.clear();
+  vec_layer_need_backward = this->net_->layer_need_backward();
+  for (int layer_id = 0; layer_id < this->net_->layers().size(); ++layer_id) {
+    string layer_name = this->net_->layer_names()[layer_id];
+    if (layer_name == "loss") {
+      // access to bottom_need_backward coresponding to label's blob
+      bool need_back = this->net_->bottom_need_backward()[layer_id][1];
+      // if propagate_down is false, the loss layer will not try to
+      // backpropagate on labels
+      EXPECT_FALSE(need_back) << "bottom_need_backward should be False";
+    }
+    // layer_need_backward should be False except for innerproduct and
+    // loss layers
+    if (layer_name == "innerproduct" || layer_name == "loss") {
+      EXPECT_TRUE(vec_layer_need_backward[layer_id])
+          << "layer_need_backward for " << layer_name << " should be True";
+    } else {
+      EXPECT_FALSE(vec_layer_need_backward[layer_id])
+          << "layer_need_backward for " << layer_name << " should be False";
+    }
   }
 }
 

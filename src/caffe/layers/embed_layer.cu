@@ -1,10 +1,7 @@
 #include <vector>
 
-#include "caffe/blob.hpp"
-#include "caffe/common.hpp"
 #include "caffe/common_layers.hpp"
 #include "caffe/filler.hpp"
-#include "caffe/layer.hpp"
 #include "caffe/util/gpu_util.cuh"
 #include "caffe/util/math_functions.hpp"
 
@@ -64,7 +61,6 @@ void EmbedLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   CHECK(!propagate_down[0]) << "Can't backpropagate to EmbedLayer input.";
   if (this->param_propagate_down_[0]) {
     const int top_count = top[0]->count();
-    const int count = this->blobs_[0]->count();
     const Dtype* top_diff = top[0]->gpu_diff();
     const Dtype* bottom_data = bottom[0]->gpu_data();
     Dtype* weight_diff = this->blobs_[0]->mutable_gpu_diff();

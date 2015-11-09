@@ -30,7 +30,7 @@ Similarly for IPython notebooks: simply include `"include_in_docs": true` in the
 
 Other docs, such as installation guides, are written in the `docs` directory and manually linked to from the `index.md` page.
 
-We strive to provide provide lots of usage examples, and to document all code in docstrings.
+We strive to provide lots of usage examples, and to document all code in docstrings.
 We absolutely appreciate any contribution to this effort!
 
 ### Versioning
@@ -62,28 +62,25 @@ The following is a poetic presentation of the protocol in code form.
 #### [Shelhamer's](https://github.com/shelhamer) “life of a branch in four acts”
 
 Make the `feature` branch off of the latest `bvlc/master`
-```
-git checkout master
-git pull upstream master
-git checkout -b feature
-# do your work, make commits
-```
+
+    git checkout master
+    git pull upstream master
+    git checkout -b feature
+    # do your work, make commits
 
 Prepare to merge by rebasing your branch on the latest `bvlc/master`
-```
-# make sure master is fresh
-git checkout master
-git pull upstream master
-# rebase your branch on the tip of master
-git checkout feature
-git rebase master
-```
+
+    # make sure master is fresh
+    git checkout master
+    git pull upstream master
+    # rebase your branch on the tip of master
+    git checkout feature
+    git rebase master
 
 Push your branch to pull request it into `BVLC/caffe:master`
-```
-git push origin feature
-# ...make pull request to master...
-```
+
+    git push origin feature
+    # ...make pull request to master...
 
 Now make a pull request! You can do this from the command line (`git pull-request -b master`) if you install [hub](https://github.com/github/hub). Hub has many other magical uses.
 
