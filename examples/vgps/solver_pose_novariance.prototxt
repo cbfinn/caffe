@@ -12,7 +12,7 @@ stepsize: 10000
 display: 100
 max_iter: 12000
 momentum: 0.9
-weight_decay: 0.005
+weight_decay: 0 #0.005
 snapshot: 1000
 snapshot_prefix: "examples/vgps/snapshot/test_newrepo"
 solver_mode: GPU

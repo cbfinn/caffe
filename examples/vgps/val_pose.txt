@@ -1,1 +1,1 @@
-../caffe/examples/vgps/data/val_pose3_rand_nomean.h5
+../caffe/examples/vgps/data/val_imagenet_kp.h5

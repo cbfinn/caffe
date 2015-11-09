@@ -3,9 +3,9 @@ layer {
   name: "data"
   type: "HDF5Data"
   top: "position"
-  top: "rgb_frames"
+  top: "rgb_frames+0"
   hdf5_data_param {
-    source: "examples/vgps/train_pose.txt"
+    source: "../caffe/examples/vgps/train_pose_slow.txt"
     batch_size: 25
   }
   include: { phase: TRAIN }
@@ -14,23 +14,23 @@ layer {
   name: "data"
   type: "HDF5Data"
   top: "position"
-  top: "rgb_frames"
+  top: "rgb_frames+0"
   hdf5_data_param {
-    source: "examples/vgps/val_pose.txt"
+    source: "../caffe/examples/vgps/val_pose_slow.txt"
     batch_size: 10
   }
   include: {
     phase: TEST
-    stage: 'test-on-val'
+    #stage: 'test-on-val'
   }
 }
 layer {
   name: "data"
   type: "HDF5Data"
   top: "position"
-  top: "rgb_frames"
+  top: "rgb_frames+0"
   hdf5_data_param {
-    source: "examples/vgps/train_pose.txt"
+    source: "../caffe/examples/vgps/train_pose_slow.txt"
     batch_size: 10
   }
   include: {
@@ -43,14 +43,14 @@ layer {
 layer {
   name: "conv1/7x7_s2"
   type: "Convolution"
-  bottom: "lrn_frames"
+  bottom: "rgb_frames+0"
   top: "conv1"
   param {
     lr_mult: 1
     decay_mult: 2
   }
   param {
-    lr_mult: 2
+    lr_mult: 1 #2
     decay_mult: 0
   }
   convolution_param {
@@ -85,7 +85,7 @@ layer {
     decay_mult: 2
   }
   param {
-    lr_mult: 2
+    lr_mult: 1 #2
     decay_mult: 0
   }
   convolution_param {
@@ -118,7 +118,7 @@ layer {
     decay_mult: 2
   }
   param {
-    lr_mult: 2
+    lr_mult: 1 #2
     decay_mult: 0
   }
   convolution_param {
@@ -190,7 +190,7 @@ layer {
     decay_mult: 1
   }
   param {
-    lr_mult: 10
+    lr_mult: 5 #10
     decay_mult: 0
   }
   inner_product_param {
