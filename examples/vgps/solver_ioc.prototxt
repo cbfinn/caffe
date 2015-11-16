@@ -1,0 +1,16 @@
+train_net: "../caffe/examples/vgps/train_val_ioc.prototxt"
+solver_type: SGD
+average_loss: 60
+#test_interval: 2000
+base_lr: 0.008 # was 0.008
+lr_policy: "step"
+gamma: 0.1
+stepsize: 100000
+display: 100
+max_iter: 8000  # 8000 iterations for cold starting
+momentum: 0.9
+#weight_decay: 0.005
+weight_decay: 0
+snapshot: 100000
+snapshot_prefix: "matnet7"
+solver_mode: GPU

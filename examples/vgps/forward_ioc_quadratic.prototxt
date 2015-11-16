@@ -1,0 +1,97 @@
+name: "CostRegressionNet"
+layer {
+  name: "data_in"
+  type: "MemoryData"
+  top: "enc_all"
+  memory_data_param {
+    data_shapes {
+      dim: 100  # T
+      dim: 40  # dimension of phi
+      dim: 1
+      dim: 1
+    }
+  }
+  include: {phase:FORWARDA}
+}
+layer {
+  name: "test_data_in"
+  type: "MemoryData"
+  top: "enc_all"
+  memory_data_param {
+    data_shapes {
+      dim: 100  # T
+      dim: 40  # dimension of Dy
+      dim: 1
+      dim: 1
+    }
+  }
+  include: {phase:TEST}
+}
+
+layer {
+  name: "fc1"
+  type: "InnerProduct"
+  bottom: "enc_all"
+  top: "Ax"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 1  # Input is TxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+}
+
+layer {
+  name: "dotproduct1"
+  type: "Eltwise"
+  bottom: "Ax"
+  bottom: "Ax"
+  top: "AxAx"
+  eltwise_param {
+    operation: PROD
+  }
+  include: {phase:TEST}
+}
+
+layer {
+  name: "fc_sum"
+  type: "InnerProduct"
+  bottom: "AxAx"
+  top: "all_cost"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1  # Output is cost for every time step - T
+    axis: 1  # Input is TxF
+    weight_filler {
+      type: "constant"
+      value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+}
