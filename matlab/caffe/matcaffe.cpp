@@ -758,7 +758,7 @@ static void init_train(MEX_ARGS) {
   solver_.reset(GetSolver<float>(solver_param));
   net_ = solver_->net();
 
-  if (nrhs == 2) {
+  if (nrhs >= 2) {
     // char* model_file = mxArrayToString(prhs[1]);
     // solver_->net()->CopyTrainedLayersFrom(string(model_file));
     // mxFree(model_file);
@@ -792,7 +792,7 @@ static void init_test_batch(MEX_ARGS) {
     const char* batch_size_string = mxArrayToString(prhs[1]);
     int batch_size = atoi(batch_size_string);
 
-    for (int i = 0; i < net_param.layers_size(); ++i) {
+    for (int i = 0; i < net_param.layer_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
       if (layer_param.type() != "MemoryData") continue;
       MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
@@ -806,7 +806,7 @@ static void init_test_batch(MEX_ARGS) {
   net_state->set_phase(TEST);
   net_.reset(new Net<float>(net_param));
 
-  if (nrhs == 3) {
+  if (nrhs >= 3) {
     char* model_file = mxArrayToString(prhs[2]);
     net_->CopyTrainedLayersFrom(string(model_file));
     mxFree(model_file);
@@ -859,7 +859,7 @@ static void init_forwarda_imgdata(MEX_ARGS) {
     const char* batch_size_string = mxArrayToString(prhs[2]);
     int batch_size = atoi(batch_size_string);
 
-    for (int i = 0; i < net_param.layers_size(); ++i) {
+    for (int i = 0; i < net_param.layer_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
       if (layer_param.type() == "ImageData") {
         ImageDataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_image_data_param();
@@ -919,7 +919,7 @@ static void init_forwarda_batch(MEX_ARGS) {
 
     LOG(INFO) << "New batch size: " << batch_size;
 
-    for (int i = 0; i < net_param.layers_size(); ++i) {
+    for (int i = 0; i < net_param.layer_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
       if (layer_param.type() != "MemoryData") continue;
       MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
@@ -985,7 +985,7 @@ static void init_forwardb_imgdata(MEX_ARGS) {
     const char* batch_size_string = mxArrayToString(prhs[2]);
     int batch_size = atoi(batch_size_string);
 
-    for (int i = 0; i < net_param.layers_size(); ++i) {
+    for (int i = 0; i < net_param.layer_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
       if (layer_param.type() == "ImageData") {
         ImageDataParameter* imgdata_param = net_param.mutable_layer(i)->mutable_image_data_param();
@@ -1029,11 +1029,11 @@ static void init_forwardb_batch(MEX_ARGS) {
   ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
 
   // Alter batch size of memory data layer in net_param
-  if (nrhs == 2) {
+  if (nrhs >= 2) {
     const char* batch_size_string = mxArrayToString(prhs[1]);
     int batch_size = atoi(batch_size_string);
 
-    for (int i = 0; i < net_param.layers_size(); ++i) {
+    for (int i = 0; i < net_param.layer_size(); ++i) {
       const LayerParameter& layer_param = net_param.layer(i);
       if (layer_param.type() != "MemoryData") continue;
       MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
@@ -1047,7 +1047,7 @@ static void init_forwardb_batch(MEX_ARGS) {
   net_state->set_phase(FORWARDB);
   net_.reset(new Net<float>(net_param));
 
-  if (nrhs == 3) {
+  if (nrhs >= 3) {
     char* model_file = mxArrayToString(prhs[2]);
     net_->CopyTrainedLayersFrom(string(model_file));
     mxFree(model_file);
@@ -1077,7 +1077,7 @@ static void init_test(MEX_ARGS) {
     solver_.reset();
   }
   net_.reset(new Net<float>(string(param_file), TEST));
-  if (nrhs == 2) {
+  if (nrhs >= 2) {
     char* model_file = mxArrayToString(prhs[1]);
     net_->CopyTrainedLayersFrom(string(model_file));
     mxFree(model_file);
@@ -1145,7 +1145,7 @@ static void vgps_train2(MEX_ARGS) {
     mex_error(error_msg.str());
   }
 
-  if (nrhs == 2) {
+  if (nrhs >= 2) {
     vgps_train2(prhs[0], prhs[1], -1, -1);
   } else {
     const char* batch_size_string1 = mxArrayToString(prhs[2]);
@@ -1207,7 +1207,7 @@ static void vgps_forward_only(MEX_ARGS) {
     mexErrMsgTxt("Wrong number of arguments");
   }
 
-  if (nrhs == 1) {
+  if (nrhs >= 1) {
     plhs[0] = vgps_forward_only(prhs[0], -1);
   } else {
     const char* batch_size_string = mxArrayToString(prhs[1]);
