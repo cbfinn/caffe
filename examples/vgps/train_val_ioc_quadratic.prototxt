@@ -9,7 +9,7 @@ layer {
     data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 40  # dimension of phi
       dim: 1
     }
     data_shapes {
@@ -30,7 +30,7 @@ layer {
     data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 40  # dimension of phi
       dim: 1
     }
     data_shapes {
@@ -103,7 +103,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 26
+    num_output: 40
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"

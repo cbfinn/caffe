@@ -1,5 +1,5 @@
 train_net: "../caffe/examples/vgps/train_val_ioc_quadratic.prototxt"
-solver_type: SGD
+solver_type: Adam
 # average_loss: 50
 #test_interval: 2000
 base_lr: 0.008 # was 0.008
