@@ -316,7 +316,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 142 (last added: spatial_softmax_param)
+// LayerParameter next available layer-specific ID: 143 (last added: spatial_softmax_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -381,6 +381,7 @@ message LayerParameter {
   optional HingeLossParameter hinge_loss_param = 114;
   optional ImageDataParameter image_data_param = 115;
   optional InfogainLossParameter infogain_loss_param = 116;
+  optional IOCLossParameter ioc_loss_param = 142;
   optional InnerProductParameter inner_product_param = 117;
   optional LogParameter log_param = 134;
   optional LRNParameter lrn_param = 118;
@@ -472,6 +473,12 @@ message ConcatParameter {
 
   // DEPRECATED: alias for "axis" -- does not support negative indexing.
   optional uint32 concat_dim = 1 [default = 1];
+}
+
+// Message that stores parameters for IOCLossLayer
+message IOCLossParameter {
+  // Specify the trajectory length.
+  // optional uint32 T = 1 [default = 100];  // Can actually just be determined by shape of incoming blobs.
 }
 
 message ContrastiveLossParameter {
