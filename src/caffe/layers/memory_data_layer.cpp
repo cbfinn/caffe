@@ -95,6 +95,16 @@ void MemoryDataLayer<Dtype>::Reset(vector<Dtype*> data, int n) {
 }
 
 
+template <typename Dtype>
+void MemoryDataLayer<Dtype>::SetBatchSize(int new_batch_size) {
+  CHECK_GT(new_batch_size, 0) << "new batch size must be positive.";
+  if (!shuffle_)
+    CHECK_EQ(n_ % new_batch_size, 0) << "n must be multiple of batch size";
+  batch_size_ = new_batch_size;
+  pos_ = 0;
+}
+
+
 /*
 template <typename Dtype>
 void MemoryDataLayer<Dtype>::Reset(Dtype* data, Dtype* labels, int n) {
