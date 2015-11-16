@@ -350,10 +350,8 @@ static mxArray* vgps_forward2(const mxArray* const bottom1, const mxArray* const
 }
 
 // Input is a cell array of 2 4-D arrays containing image and joint info
-static mxArray* vgps_forward_only(const mxArray* const bottom) {
+static mxArray* vgps_forward_only(const mxArray* const bottom, int batch_size) {
   LOG(INFO) << "Running forward pass";
-  //vector<shared_ptr<Blob<float> > > input_blobs;
-  //input_blobs.resize(2);
   shared_ptr<MemoryDataLayer<float> > md_layer =
     boost::dynamic_pointer_cast<MemoryDataLayer<float> >(net_->layers()[0]);
   vector<float*> inputs;
@@ -372,6 +370,7 @@ static mxArray* vgps_forward_only(const mxArray* const bottom) {
     }
   }
 
+  if (batch_size != -1) md_layer->SetBatchSize(batch_size);
   md_layer->Reset(inputs, num_samples);
 
   float initial_loss;
@@ -1019,12 +1018,19 @@ static void vgps_forward2(MEX_ARGS) {
 }
 
 static void vgps_forward_only(MEX_ARGS) {
-  if (nrhs != 1) {
+  if (nrhs >= 3) {
     LOG(ERROR) << "Only given " << nrhs << " arguments";
     mexErrMsgTxt("Wrong number of arguments");
   }
 
-  plhs[0] = vgps_forward_only(prhs[0]);
+  if (nrhs >= 1) {
+    plhs[0] = vgps_forward_only(prhs[0], -1);
+  } else {
+    const char* batch_size_string = mxArrayToString(prhs[1]);
+    int batch_size = atoi(batch_size_string);
+
+    plhs[0] = vgps_forward_only(prhs[0], batch_size);
+  }
 }
 
 static void backward(MEX_ARGS) {
