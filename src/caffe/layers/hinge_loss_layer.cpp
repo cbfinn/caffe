@@ -21,13 +21,13 @@ void HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   int dim = count / num;
 
   caffe_copy(count, bottom_data, bottom_diff);
-  for (int i = 0; i < num; ++i) {
-    bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
-  }
+  //for (int i = 0; i < num; ++i) {
+  //  bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
+  //}
   for (int i = 0; i < num; ++i) {
     for (int j = 0; j < dim; ++j) {
       bottom_diff[i * dim + j] = std::max(
-        Dtype(0), 1 + bottom_diff[i * dim + j]);
+        Dtype(0), bottom_diff[i * dim + j]);
     }
   }
   Dtype* loss = top[0]->mutable_cpu_data();
@@ -57,9 +57,9 @@ void HingeLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     int count = bottom[0]->count();
     int dim = count / num;
 
-    for (int i = 0; i < num; ++i) {
-      bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
-    }
+    //for (int i = 0; i < num; ++i) {
+    //  bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
+    //}
 
     const Dtype loss_weight = top[0]->cpu_diff()[0];
     switch (this->layer_param_.hinge_loss_param().norm()) {
