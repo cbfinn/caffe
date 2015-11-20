@@ -4,9 +4,9 @@ layer {
   type: "MemoryData"
   top: "enc_all"
   memory_data_param {
-    data_shapes {
+    input_shapes {
       dim: 100  # T
-      dim: 40  # dimension of phi
+      dim: 26  # dimension of phi
       dim: 1
       dim: 1
     }
@@ -18,9 +18,9 @@ layer {
   type: "MemoryData"
   top: "enc_all"
   memory_data_param {
-    data_shapes {
+    input_shapes {
       dim: 100  # T
-      dim: 40  # dimension of Dy
+      dim: 26  # dimension of Dy
       dim: 1
       dim: 1
     }
@@ -42,7 +42,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 40
+    num_output: 26
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
