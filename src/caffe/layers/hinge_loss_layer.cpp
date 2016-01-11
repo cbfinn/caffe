@@ -11,24 +11,24 @@
 namespace caffe {
 
 template <typename Dtype>
+void HingeLossLayer<Dtype>::Reshape(
+    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  vector<int> loss_shape(0);  // Loss layers output a scalar; 0 axes.
+  top[0]->Reshape(loss_shape);
+}
+
+template <typename Dtype>
 void HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
-  //const Dtype* label = bottom[1]->cpu_data();
   int num = bottom[0]->num();
   int count = bottom[0]->count();
-  int dim = count / num;
 
   caffe_copy(count, bottom_data, bottom_diff);
-  //for (int i = 0; i < num; ++i) {
-  //  bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
-  //}
-  for (int i = 0; i < num; ++i) {
-    for (int j = 0; j < dim; ++j) {
-      bottom_diff[i * dim + j] = std::max(
-        Dtype(0), bottom_diff[i * dim + j]);
-    }
+
+  for (int i = 0; i < count; ++i) {
+      bottom_diff[i] = std::max(Dtype(0), bottom_diff[i]);
   }
   Dtype* loss = top[0]->mutable_cpu_data();
   switch (this->layer_param_.hinge_loss_param().norm()) {
@@ -46,19 +46,10 @@ void HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void HingeLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  if (propagate_down[1]) {
-    LOG(FATAL) << this->type()
-               << " Layer cannot backpropagate to label inputs.";
-  }
   if (propagate_down[0]) {
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
-    //const Dtype* label = bottom[1]->cpu_data();
     int num = bottom[0]->num();
     int count = bottom[0]->count();
-
-    //for (int i = 0; i < num; ++i) {
-    //  bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
-    //}
 
     const Dtype loss_weight = top[0]->cpu_diff()[0];
     switch (this->layer_param_.hinge_loss_param().norm()) {

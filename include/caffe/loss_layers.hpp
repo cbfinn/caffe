@@ -502,7 +502,10 @@ class HingeLossLayer : public LossLayer<Dtype> {
   explicit HingeLossLayer(const LayerParameter& param)
       : LossLayer<Dtype>(param) {}
 
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
   virtual inline const char* type() const { return "HingeLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
 
  protected:
   /// @copydoc HingeLossLayer
