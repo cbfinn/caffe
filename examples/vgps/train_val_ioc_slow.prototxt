@@ -399,7 +399,7 @@ layer {
   name: "reshape_costdiff"
   type: "Reshape"
   bottom: "demo_costdiff"
-  top: "demo_costdiff"
+  top: "demo_costdiff_reshape"
   reshape_param {
     shape {
       dim: -1
@@ -418,30 +418,14 @@ layer {
   bottom: "sample_costdiff"
 }
 layer {
-  name: "dummy_label"
-  type: "DummyData"
-  top: "hinge_label"
-  dummy_data_param {
-    data_filler {
-      type: 'constant'
-      value: 0
-    }
-    shape {
-      dim: 490 # 5*98
-      dim: 1
-    }
-  }
-}
-layer {
   name: "monotonic_loss"
   type: "HingeLoss"
-  bottom: "demo_costdiff"
-  bottom: "hinge_label"
+  bottom: "demo_costdiff_reshape"
   top: "monotonic_loss"
   hinge_loss_param {
     norm: L1
   }
-  loss_weight: 0.1 #0.1 #0.0000000001
+  loss_weight: 0.1 #0.0000000001
 }
 # Regularization Loss
 
