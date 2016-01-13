@@ -1,4 +1,4 @@
-train_net: "../caffe/examples/vgps/train_val_ioc_slow.prototxt"
+train_net: "../caffe/examples/vgps/train_val_ioc_slow_mono1.prototxt"
 solver_type: ADAM # ADAM for CD
 average_loss: 50
 random_seed: 103
