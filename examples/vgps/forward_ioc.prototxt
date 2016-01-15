@@ -12,6 +12,7 @@ layer {
     }
   }
   include: {phase:FORWARDA}
+  include: {phase:TRAIN} # TRAIN is for computing jacobians
 }
 layer {
   name: "test_data_in"
@@ -53,6 +54,8 @@ layer {
     }
   }
   include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  propagate_down: 1
 }
 layer {
   name: "relu1"
@@ -60,6 +63,7 @@ layer {
   bottom: "enc1"
   top: "enc1"
   include: {phase: FORWARDA}
+  include: {phase:TRAIN}
 }
 layer {
   name: "fc_enc2"
@@ -87,6 +91,7 @@ layer {
     }
   }
   include: {phase: FORWARDA}
+  include: {phase:TRAIN}
 }
 layer {
   name: "relu2"
@@ -94,6 +99,7 @@ layer {
   bottom: "enc2"
   top: "enc2"
   include: {phase: FORWARDA}
+  include: {phase:TRAIN}
 }
 layer {
   name: "fc_enc3"
@@ -121,6 +127,8 @@ layer {
     }
   }
   include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  loss_weight: 0.1
 }
 
 layer {
@@ -169,7 +177,7 @@ layer {
   bottom: "AxAx"
   top: "all_cost"
   param {
-    lr_mult: 0
+    lr_mult: 1
     decay_mult: 0
   }
   param {
