@@ -260,6 +260,7 @@ enum Phase {
    TEST = 1;
    FORWARDA = 2;
    FORWARDB = 3;
+   FORWARDV = 6;
    TRAINA = 4; // Not sure if used. Probably not since phase must be TRAIN to train.
    TRAINB = 5; // Not sure if used. Probably not since phase must be TRAIN to train.
 }

@@ -932,6 +932,57 @@ static void init_forwarda_batch(MEX_ARGS) {
   }
 }
 
+// first arg is prototxt file, second optional arg is batch size, third optional arg is model weights file
+// Can initialize weights from string, use init_test to initialize from caffemodel file
+static void init_forwardv_batch(MEX_ARGS) {
+  if (nrhs != 2 && nrhs != 1 && nrhs != 3) {
+    ostringstream error_msg;
+    error_msg << "Only given " << nrhs << " arguments";
+    mex_error(error_msg.str());
+  }
+
+  char* param_file = mxArrayToString(prhs[0]);
+  if (solver_) {
+    solver_.reset();
+  }
+  NetParameter net_param;
+  ReadNetParamsFromTextFileOrDie(string(param_file), &net_param);
+
+  // Alter batch size of memory data layer in net_param
+  if (nrhs >= 2) {
+    const char* batch_size_string = mxArrayToString(prhs[1]);
+    int batch_size = atoi(batch_size_string);
+
+    for (int i = 0; i < net_param.layer_size(); ++i) {
+      const LayerParameter& layer_param = net_param.layer(i);
+      if (layer_param.type() != "MemoryData") continue;
+      LOG(INFO) << "Setting batch size to " << batch_size;
+      MemoryDataParameter* mem_param = net_param.mutable_layer(i)->mutable_memory_data_param();
+      // Change batch size of all blobs in the memory data layer parameter
+      for (int blob_i = 0; blob_i < mem_param->input_shapes_size(); ++blob_i) {
+        mem_param->mutable_input_shapes(blob_i)->set_dim(0, batch_size);
+      }
+    }
+  }
+  NetState* net_state = net_param.mutable_state();
+  net_state->set_phase(FORWARDV);
+  net_.reset(new Net<float>(net_param));
+
+  if (nrhs >= 3) {
+    char* model_file = mxArrayToString(prhs[2]);
+    net_->CopyTrainedLayersFrom(string(model_file));
+    mxFree(model_file);
+  }
+
+  mxFree(param_file);
+
+  init_key = random();  // NOLINT(caffe/random_fn)
+
+  if (nlhs == 1) {
+    plhs[0] = mxCreateDoubleScalar(init_key);
+  }
+}
+
 // Sets phase to test and initializes weights from caffemodel file/
 // Can't change batch size with this command (defaults to prototxt file.)
 static void init_test(MEX_ARGS) {
@@ -1155,6 +1206,7 @@ static handler_registry handlers[] = {
   { "init_test",          init_test       },
   { "init_test_batch",    init_test_batch},
   { "init_forwarda_batch",init_forwarda_batch},
+  { "init_forwardv_batch",init_forwardv_batch},
   { "init_train_batch",   init_train_batch},
   { "init_train",         init_train      },
   { "is_initialized",     is_initialized  },
