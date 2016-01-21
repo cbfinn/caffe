@@ -231,6 +231,48 @@ class ExpectationFiller : public Filler<Dtype> {
   }
 };
 
+/** @brief Fills a Blob with an identity matrix, or identity in half
+ * of the matrix and negative identity in the other half.
+ */
+template <typename Dtype>
+class IdentityFiller : public Filler<Dtype> {
+ public:
+  explicit IdentityFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+  virtual void Fill(Blob<Dtype>* blob) {
+    Dtype* data = blob->mutable_cpu_data();
+    DCHECK(blob->count());
+    const string& option = this->filler_param_.identity_option(); // "positive" or "both"
+
+    if (option == "positive") {
+      // Output and input dimensions should be the same.
+      CHECK_EQ(blob->shape(0), blob->shape(1)) << "Output and input dim different: " << blob->shape(0);
+    } else if (option == "both") {
+      CHECK_EQ(blob->shape(0), 2*blob->shape(1)) << "Output should be 2x size of input: " << blob->shape(0);
+    } else {
+      LOG(FATAL) << "Unknown identity filler policy: " << option;
+    }
+
+
+
+    for (int x = 0; x < blob->shape(0); ++x) {
+      for (int y = 0; y < blob->shape(1); ++y) {
+          int offset = x*blob->shape(1) + y;
+          if (x == y) {
+            data[offset] = 1;
+          } else if (x == y + blob->shape(1)) {
+            data[offset] = -1;
+          } else {
+            data[offset] = 0;
+          }
+      }
+    }
+    CHECK_EQ(this->filler_param_.sparse(), -1)
+         << "Sparsity not supported by this Filler.";
+  }
+};
+
+
 /**
  * @brief Fills a Blob with values @f$ x \sim N(0, \sigma^2) @f$ where
  *        @f$ \sigma^2 @f$ is set inversely proportional to number of incoming
@@ -352,6 +394,8 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new MSRAFiller<Dtype>(param);
   } else if (type == "bilinear") {
     return new BilinearFiller<Dtype>(param);
+  } else if (type == "identity") {
+    return new IdentityFiller<Dtype>(param);
   } else {
     CHECK(false) << "Unknown filler name: " << param.type();
   }

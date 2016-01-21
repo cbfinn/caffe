@@ -61,6 +61,7 @@ message FillerParameter {
   // expected y coordinates, "xy" computes expected (x,y) coordinates, "-x^2y^2"
   // computes the expectation over (-x^2, -y^2), for computing variance)
   optional string expectation_option = 11 [default = "xy"];
+  optional string identity_option = 12 [default = "positive"];
 
   // Normalize the filler variance by fan_in, fan_out, or their average.
   // Applies to 'xavier' and 'msra' fillers.
