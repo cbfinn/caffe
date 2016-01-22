@@ -432,7 +432,7 @@ layer {
   hinge_loss_param {
     norm: L2
   }
-  loss_weight: 1.0 #0.0000000001
+  loss_weight: 10.0 #0.0000000001
 }
 # Regularization Loss
 
@@ -457,6 +457,7 @@ layer {
   loss_weight: 0 #1e-4
 }
 
+### TORQUE PENALTY ###
 layer {
   name: "torque_penalty"
   type: "InnerProduct"

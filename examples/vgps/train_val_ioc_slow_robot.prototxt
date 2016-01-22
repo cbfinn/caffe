@@ -389,7 +389,7 @@ layer {
   hinge_loss_param {
     norm: L1
   }
-  loss_weight: 1.0 #0.0000000001
+  loss_weight: 10.0 #0.0000000001
 }
 # Regularization Loss
 
