@@ -541,6 +541,11 @@ class HingeLossLayer : public LossLayer<Dtype> {
    */
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+ private:
+  Blob<Dtype> temp_;
+  float offset_;
+
 };
 
 /**
@@ -564,7 +569,9 @@ template <typename Dtype>
 class IOCLossLayer : public LossLayer<Dtype> {
  public:
   explicit IOCLossLayer(const LayerParameter& param)
-      : LossLayer<Dtype>(param), demo_counts_(), sample_counts_() {}
+      : LossLayer<Dtype>(param), demo_counts_(), sample_counts_(), avg_demo_counts_(), avg_sample_counts_() {}
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
@@ -620,8 +627,8 @@ class IOCLossLayer : public LossLayer<Dtype> {
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
-  Blob<Dtype> demo_counts_;
-  Blob<Dtype> sample_counts_;
+  Blob<Dtype> demo_counts_, avg_demo_counts_;
+  Blob<Dtype> sample_counts_, avg_sample_counts_;
 
   /// Max value used for safe exponentiation, and cached partition function.
   Dtype max_val_, partition_;
@@ -629,6 +636,8 @@ class IOCLossLayer : public LossLayer<Dtype> {
   int T_;
   /// The number of samples and demos.
   int ns_, nd_;
+  /// The interation number.
+  int iteration_;
 };
 
 

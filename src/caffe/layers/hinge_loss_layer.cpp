@@ -15,28 +15,37 @@ void HingeLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   vector<int> loss_shape(0);  // Loss layers output a scalar; 0 axes.
   top[0]->Reshape(loss_shape);
+  temp_.Reshape(bottom[0]->shape());
 }
 
 template <typename Dtype>
 void HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  offset_ = this->layer_param_.hinge_loss_param().offset();
+  //LOG(INFO) << "hinge loss forward";
   const Dtype* bottom_data = bottom[0]->cpu_data();
-  Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+  //Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+  Dtype* temp = temp_.mutable_cpu_data();
   int num = bottom[0]->num();
   int count = bottom[0]->count();
 
-  caffe_copy(count, bottom_data, bottom_diff);
+  caffe_copy(count, bottom_data, temp);
+  //caffe_copy(count, bottom_data, bottom_diff);
 
   for (int i = 0; i < count; ++i) {
-      bottom_diff[i] = std::max(Dtype(0), bottom_diff[i]);
+      //if (temp[i] != temp[i]) {
+        //LOG(INFO) << "Encountered nan in temp[i], i=" << i << ", temp[i]=" << temp[i];
+      //}
+      temp[i] = std::max(Dtype(0), temp[i]+offset_);
+      //LOG(INFO) << "diff " << i << ", " << temp[i];
   }
   Dtype* loss = top[0]->mutable_cpu_data();
   switch (this->layer_param_.hinge_loss_param().norm()) {
   case HingeLossParameter_Norm_L1:
-    loss[0] = caffe_cpu_asum(count, bottom_diff) / num;
+    loss[0] = caffe_cpu_asum(count, temp) / num;
     break;
   case HingeLossParameter_Norm_L2:
-    loss[0] = caffe_cpu_dot(count, bottom_diff, bottom_diff) / num;
+    loss[0] = caffe_cpu_dot(count, temp, temp) / num;
     break;
   default:
     LOG(FATAL) << "Unknown Norm";
@@ -50,6 +59,7 @@ void HingeLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     int num = bottom[0]->num();
     int count = bottom[0]->count();
+    caffe_copy(count, temp_.cpu_data(), bottom_diff);
 
     const Dtype loss_weight = top[0]->cpu_diff()[0];
     switch (this->layer_param_.hinge_loss_param().norm()) {
