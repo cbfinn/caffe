@@ -8,6 +8,13 @@
 
 namespace caffe {
 
+template <typename Dtype>
+void IOCLossLayer<Dtype>::LayerSetUp(
+    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  LossLayer<Dtype>::LayerSetUp(bottom, top);
+  iteration_ = 0;
+}
+
 // bottom[0] is the demos, bottom[1] is the samples. Each are N x T
 template <typename Dtype>
 void IOCLossLayer<Dtype>::Reshape(
@@ -23,6 +30,8 @@ void IOCLossLayer<Dtype>::Reshape(
   CHECK_EQ(bottom[1]->num(), bottom[3]->num());
   demo_counts_.Reshape(nd_, 1, 1, 1);
   sample_counts_.Reshape(ns_, 1, 1, 1);
+  //avg_demo_counts_.Reshape(nd_, 1, 1, 1);
+  //avg_sample_counts_.Reshape(ns_, 1, 1, 1);
 }
 
 template <typename Dtype>
@@ -74,6 +83,39 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   caffe_exp(nd_, dc, dc);
   caffe_exp(ns_, sc, sc);
 
+  // Effective sample size is sum(exp(sc[i]))^2 / sum(exp(sc[i]).^2)
+  // Calculate effective sample size
+  //Dtype* avg_dc = avg_demo_counts_.mutable_cpu_data();
+  //Dtype* avg_sc = avg_sample_counts_.mutable_cpu_data();
+  //for (int i = 0; i < nd_; ++i) {
+    //if (iteration_ == 0) avg_dc[i] = 0.0;
+    //avg_dc[i] += dc[i];
+  //}
+  //for (int i = 0; i < ns_; ++i) {
+    //if (iteration_ == 0) avg_sc[i] = 0.0;
+    //avg_sc[i] += sc[i];
+  //}
+
+  if (iteration_ % 100 == 0 && iteration_ != 0) {
+    float ess_num = 0.0;
+    float ess_denom = 0.0;
+    for (int i = 0; i < ns_; ++i) {
+        ess_num += sc[i];
+        ess_denom += sc[i]*sc[i];
+        //avg_sc[i] = 0;
+    }
+    for (int i = 0; i < ns_; ++i) {
+        ess_num += dc[i];
+        ess_denom += dc[i]*dc[i];
+        //avg_dc[i] = 0;
+    }
+    float ess = ess_num*ess_num/ess_denom;
+    LOG(INFO) << "Iteration: " << iteration_;
+    LOG(INFO) << "ESS: " << ess;
+  }
+  // TODO - do something with this ess calculation. (Maybe calculate it in solver after fwd/bwd pass? Maybe print here?
+
+
   partition_ = 0.0;
   for (int i = 0; i < nd_; ++i) partition_ += dc[i];
   for (int i = 0; i < ns_; ++i) partition_ += sc[i];
@@ -81,6 +123,7 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   loss += log(partition_) + max_val_;
 
   top[0]->mutable_cpu_data()[0] = loss;
+  iteration_++;
 }
 
 template <typename Dtype>
