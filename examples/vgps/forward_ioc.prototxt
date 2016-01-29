@@ -42,7 +42,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 40
+    num_output: 52
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
@@ -79,7 +79,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 40
+    num_output: 52
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
