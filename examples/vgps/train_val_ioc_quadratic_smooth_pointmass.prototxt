@@ -9,7 +9,7 @@ layer {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 4  # dimension of phi
       dim: 1
     }
     input_shapes {
@@ -30,7 +30,7 @@ layer {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 4  # dimension of phi
       dim: 1
     }
     input_shapes {
@@ -54,7 +54,6 @@ layer {
   }
 }
 
-
 layer {
   name: "fc_enc3"
   type: "InnerProduct"
@@ -69,7 +68,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 20
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -97,7 +96,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 20
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -220,7 +219,6 @@ layer {
     coeff: -1
   }
 }
-
 layer {
   name: "slow_l2_reg_loss"
   type: "EuclideanLoss"
@@ -269,10 +267,10 @@ layer {
   top: "monotonic_loss"
   hinge_loss_param {
     norm: L2
+    offset: 1.0
   }
-  loss_weight: 100.0 #0.0000000001
+  loss_weight: 100 #0.0000000001
 }
-# Regularization Loss
 
 layer {
   name: "loss"

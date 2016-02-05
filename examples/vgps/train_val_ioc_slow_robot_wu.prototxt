@@ -344,45 +344,7 @@ layer {
     coeff: -1
   }
 }
-#layer {
-#  name: "inv_demo_0"
-#  type: "Power"
-#  bottom: "demo+0_cost"
-#  top: "demo+0_cost_inv"
-#  power_param {
-#    power: -1
-#    shift: 0.1
-#  }
-#}
-#layer {
-#  name: "demo_t+1-demo_t"
-#  type: "Eltwise"
-#  bottom: "demo_cost_diff1"
-#  bottom: "demo+0_cost_inv"
-#  top: "demo_cost_diff1"
-#  eltwise_param {
-#    operation: PROD
-#  }
-#}
-#layer {
-#  name: "demo_t+1-demo_t"
-#  type: "Eltwise"
-#  bottom: "demo_cost_diff-1"
-#  bottom: "demo+0_cost_inv"
-#  top: "demo_cost_diff-1"
-#  eltwise_param {
-#    operation: PROD
-#  }
-#}
 
-#layer {
-#  name: "slow_l1_reg_loss"
-#  type: "L1Loss"
-#  bottom: "cost_diff1"
-#  bottom: "cost_diff-1"
-#  top: "slow_l1_loss"
-#  loss_weight: 0
-#}
 layer {
   name: "slow_l2_reg_loss"
   type: "EuclideanLoss"

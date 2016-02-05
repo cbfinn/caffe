@@ -6,13 +6,13 @@ layer {
   top: "demos"
   top: "dlogis"
   memory_data_param {
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
     }
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1
@@ -27,13 +27,13 @@ layer {
   top: "samples"
   top: "slogis"
   memory_data_param {
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
     }
-    input_shapes {
+    data_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 1
       dim: 1
@@ -42,6 +42,41 @@ layer {
   }
   include: {phase: TRAIN}
 }
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "demos"
+#  hdf5_data_param {
+#    source: "examples/vgps/demos_ioc.txt"
+#    batch_size: 5  # Must be same as slice point
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "samples"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/samples_ioc.txt"
+#    batch_size: 10
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "position"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/train_pose.txt"
+#    batch_size: 10
+#  }
+#  include: {
+#    phase: TEST
+#    stage: 'test-on-train'
+#  }
+#}
 
 layer {
   name: "demo_sample_concat"
@@ -68,7 +103,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 26 # dimension of phi
+    num_output: 26
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -144,126 +179,13 @@ layer {
     shift: 0
   }
 }
-
-# Slowness loss handling, input NxTx1
-layer {
-  name: "demo-1_slice"
-  type: "Slice"
-  bottom: "all_cost"
-  top: "t-1_cost"
-  top: "end_cost"
-  slice_param {
-    axis: 1
-    slice_point: 98
-  }
-}
-layer {
-  name: "demo+1_slice"
-  type: "Slice"
-  bottom: "all_cost"
-  top: "start_cost"
-  top: "t+1_cost"
-  slice_param {
-    axis: 1
-    slice_point: 2
-  }
-}
-layer {
-  name: "demo+0_slice"
-  type: "Slice"
-  bottom: "all_cost"
-  top: "start_cost1"
-  top: "t+0_cost"
-  top: "end_cost1"
-  slice_param {
-    axis: 1
-    slice_point: 1
-    slice_point: 99
-  }
-}
-
-layer {
-  name: "demo_t+1-demo_t"
-  type: "Eltwise"
-  bottom: "t+1_cost"
-  bottom: "t+0_cost"
-  top: "cost_diff1"
-  eltwise_param {
-    operation: SUM
-    coeff: 1
-    coeff: -1
-  }
-}
-layer {
-  name: "demo_t-demo_t-1"
-  type: "Eltwise"
-  bottom: "t+0_cost"
-  bottom: "t-1_cost"
-  top: "cost_diff-1"
-  eltwise_param {
-    operation: SUM
-    coeff: 1
-    coeff: -1
-  }
-}
-layer {
-  name: "slow_l2_reg_loss"
-  type: "EuclideanLoss"
-  bottom: "cost_diff1"
-  bottom: "cost_diff-1"
-  top: "slow_l2_loss"
-  loss_weight: 0.1 # 0.1
-}
-layer {
-  name: "demo_sample_diffslice"
-  type: "Slice"
-  bottom: "cost_diff1"
-  top: "demo_costdiff"
-  top: "sample_costdiff"
-  slice_param {
-    axis: 0
-    slice_point: 5 # Needs to be equal to demo batch size.
-  }
-}
-layer {
-  name: "reshape_costdiff"
-  type: "Reshape"
-  bottom: "demo_costdiff"
-  top: "demo_costdiff"
-  reshape_param {
-    shape {
-      dim: -1
-      dim: 1
-      dim: 0
-    }
-  }
-}
-layer {
-  name: "silence_layer"
-  type: "Silence"
-  bottom: "start_cost"
-  bottom: "end_cost"
-  bottom: "start_cost1"
-  bottom: "end_cost1"
-  bottom: "sample_costdiff"
-}
-layer {
-  name: "monotonic_loss"
-  type: "HingeLoss"
-  bottom: "demo_costdiff"
-  top: "monotonic_loss"
-  hinge_loss_param {
-    norm: L2
-  }
-  loss_weight: 1 #0.1 #0.1 #0.0000000001
-}
 layer {
   name: "reg_loss"
   type: "EuclideanLoss"
   bottom: "Ax"
   bottom: "zeros"
   top: "reg_loss"
-  loss_weight: 0 #1e-4 #1e-6
+  loss_weight: 0
 }
 
 layer {

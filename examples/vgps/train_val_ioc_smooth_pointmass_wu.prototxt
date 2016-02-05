@@ -5,11 +5,12 @@ layer {
   type: "MemoryData"
   top: "demos"
   top: "dlogis"
+  top: "dU"
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 4  # dimension of phi
       dim: 1
     }
     input_shapes {
@@ -18,19 +19,25 @@ layer {
       dim: 1
       dim: 1
     }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 1
+      dim: 1
+    }
   }
-  include: {phase: TRAIN}
 }
 layer {
   name: "data_in_samples"
   type: "MemoryData"
   top: "samples"
   top: "slogis"
+  top: "sU"
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 4  # dimension of phi
       dim: 1
     }
     input_shapes {
@@ -39,10 +46,31 @@ layer {
       dim: 1
       dim: 1
     }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 1
+      dim: 1
+    }
   }
-  include: {phase: TRAIN}
 }
-
+layer {
+  name: "dummy_data_u"
+  type: "DummyData"
+  top: "dummy_u"
+  dummy_data_param {
+    shape {
+        dim: 10
+        dim: 100
+        dim: 1
+        dim: 1
+    }
+    data_filler {
+        type: "constant"
+        value: 1
+    }
+  }
+}
 layer {
   name: "demo_sample_concat"
   type: "Concat"
@@ -53,12 +81,101 @@ layer {
     axis: 0
   }
 }
-
-
+layer {
+  name: "demo_sample_concat"
+  type: "Concat"
+  bottom: "dU"
+  bottom: "sU"
+  top: "allU"
+  concat_param {
+    axis: 0
+  }
+}
+layer {
+  name: "allU_reshape"
+  type: "Reshape"
+  bottom: "allU"
+  top: "allU_reshape"
+  reshape_param {
+    shape {
+      dim: 10 # dependent on batch size
+      dim: 100
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "fc_enc1"
+  type: "InnerProduct"
+  bottom: "all_traj"
+  top: "enc1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      #type: "identity"
+      #identity_option: "both"
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "enc1"
+  top: "enc1"
+}
+layer {
+  name: "fc_enc2"
+  type: "InnerProduct"
+  bottom: "enc1"
+  top: "enc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      #type: "identity"
+      #identity_option: "positive"
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "enc2"
+  top: "enc2"
+}
 layer {
   name: "fc_enc3"
   type: "InnerProduct"
-  bottom: "all_traj"
+  bottom: "enc2"
   top: "enc_all"
   param {
     lr_mult: 1
@@ -69,7 +186,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 20
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -97,7 +214,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 20
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -147,17 +264,7 @@ layer {
     }
   }
 }
-layer {
-  name: "demo_sample_slice"
-  type: "Slice"
-  bottom: "all_cost"
-  top: "demo_cost"
-  top: "sample_cost"
-  slice_param {
-    axis: 0
-    slice_point: 5 # Needs to be equal to demo batch size.
-  }
-}
+
 
 # Slowness loss handling, input NxTx1
 layer {
@@ -220,7 +327,6 @@ layer {
     coeff: -1
   }
 }
-
 layer {
   name: "slow_l2_reg_loss"
   type: "EuclideanLoss"
@@ -269,10 +375,82 @@ layer {
   top: "monotonic_loss"
   hinge_loss_param {
     norm: L2
+    offset: 1.0
   }
-  loss_weight: 100.0 #0.0000000001
+  loss_weight: 100 #0.0000000001
 }
-# Regularization Loss
+
+### TORQUE PENALTY ###
+layer {
+  name: "torque_penalty"
+  type: "InnerProduct"
+  bottom: "dummy_u"
+  top: "torque_weight"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    axis: 2  # Input and output are NxTx1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "torqueweight^2"
+  type: "Power"
+  bottom: "torque_weight"
+  top: "torque_weight^2"
+  power_param {
+    power: 2
+  }
+}
+layer {
+  name: "eltwise_mult_torque"
+  type: "Eltwise"
+  bottom: "allU_reshape"
+  bottom: "torque_weight^2"
+  top: "all_torque"
+  eltwise_param {
+    operation: PROD
+  }
+}
+
+layer {
+  name: "add_torque_penalty"
+  type: "Eltwise"
+  bottom: "all_cost"
+  bottom: "all_torque"
+  top: "all_cost_withtorque"
+  eltwise_param {
+    operation: SUM
+    coeff: 1
+    coeff: 1  # torque/2 + cost
+  }
+}
+layer {
+  name: "demo_sample_slice"
+  type: "Slice"
+  bottom: "all_cost_withtorque"
+  top: "demo_cost"
+  top: "sample_cost"
+  slice_param {
+    axis: 0
+    slice_point: 5 # Needs to be equal to demo batch size.
+  }
+}
+
 
 layer {
   name: "loss"
@@ -282,5 +460,8 @@ layer {
   bottom: "dlogis"
   bottom: "slogis"
   top: "ioc_loss"
+  ioc_loss_param {
+    append_demos: true
+  }
   loss_weight: 1.0 # Used 1 for most things, needs to be more for subsampled
 }

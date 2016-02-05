@@ -1,0 +1,364 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  # Input is NxTxF
+  name: "data_in_demos"
+  type: "MemoryData"
+  top: "demo_states"
+  memory_data_param {
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 26  # dimension of phi
+      dim: 1
+    }
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  name: "data_in_samples"
+  type: "MemoryData"
+  top: "sample_states"
+  memory_data_param {
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 26  # dimension of phi
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "demo_img_data"
+  type: "ImageData"
+  top: "demo_images"
+  image_data_param {
+    source: "img_database_temp/demo_ioc_images.txt"
+    batch_size: 5000  # Must be same as slice point and demo batch size*100
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "sample_img_data"
+  type: "ImageData"
+  top: "sample_images"
+  image_data_param {
+    source: "img_database_temp/sample_ioc_images.txt"
+    batch_size: 500  # Must be same as slice point and demo batch size*100
+  }
+}
+
+# Concatenate demos and samples, will be sliced later.
+layer {
+  name: "concat_states"
+  type: "Concat"
+  bottom: "demo_states"
+  bottom: "sample_states"
+  top: "all_states"
+  concat_param {
+    axis: 0
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "concat_images"
+  type: "Concat"
+  bottom: "demo_images"
+  bottom: "sample_images"
+  top: "all_images"
+  concat_param {
+    axis: 0
+  }
+  include: { phase: TRAIN }
+}
+
+# Image Processing Layers
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "all_images"
+  top: "conv1"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+
+
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv3"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
+}
+layer {
+  name: "softmax"
+  type: "SpatialSoftmax"
+  bottom: "conv3"
+  top: "conv3"
+  spatial_softmax_param {
+    engine: CAFFE
+    temperature: 1.0
+    dimension: "spatial"
+  }
+}
+layer {
+  name: "fc_images"
+  type: "InnerProduct"
+  bottom: "conv3"
+  top: "expected_xy"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
+    weight_filler {
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# Reshape to be over trials, not individual data points
+layer {
+  name: "reshape_fp"
+  type: "Reshape"
+  bottom: "expected_xy"
+  top: "feature_points"
+  reshape_param {
+    shape {
+      dim: 15 # Must be sum of demo and sample batch sizes.
+      dim: 100 # Must be T
+      dim: 64 # conv3 channels * 2
+    }
+  }
+}
+layer {
+  name: "concat_features"
+  type: "Concat"
+  bottom: "feature_points"
+  bottom: "all_states"
+  top: "cost_features"
+  concat_param {
+    axis: 2  # axis 0 is N, axis 1 is T.
+  }
+}
+
+# Affine cost layer
+layer {
+  name: "fc1"
+  type: "InnerProduct"
+  bottom: "cost_features"
+  top: "Ax"
+  param {
+    lr_mult: 1 # 1 for full cold start
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2 # 2 for full cold start
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 26 # What should this be??
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "dotproduct1"
+  type: "Eltwise"
+  bottom: "Ax"
+  bottom: "Ax"
+  top: "AxAx"
+  eltwise_param {
+    operation: PROD
+  }
+}
+
+layer {
+  name: "fc_sum"
+  type: "InnerProduct"
+  bottom: "AxAx"
+  top: "all_cost"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1  # Output is cost for every time step - NxT
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "constant"
+      value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "demo_sample_slice"
+  type: "Slice"
+  bottom: "all_cost"
+  top: "demo_cost"
+  top: "sample_cost"
+  slice_param {
+    axis: 0
+    slice_point: 10 # Needs to be equal to demo batch size.
+  }
+  include: { phase: TRAIN }
+}
+
+layer {
+  name: "loss"
+  type: "IOCLoss"
+  bottom: "demo_cost"
+  bottom: "sample_cost"
+  top: "ioc_loss"
+  loss_weight: 1 # Used 1 for demo batch size of 10.
+  include: { phase: TRAIN }
+}
+# Regularization Loss
+
+## Make an input of all zeros
+layer {
+  name: "zeros"
+  type: "Power"
+  bottom: "Ax"
+  top: "zeros"
+  power_param {
+    scale: 0
+    power: 1
+    shift: 0
+  }
+}
+layer {
+  name: "reg_loss"
+  type: "EuclideanLoss"
+  bottom: "Ax"
+  bottom: "zeros"
+  top: "reg_loss"
+  loss_weight: 1e-4
+}
+
+#layer {
+#  name: "output_lrn"
+#  type: HDF5_OUTPUT
+#  hdf5_output_param {
+#    file_name: "examples/vgps/data/lrn_output_exposure.h5"
+#  }
+#  bottom: "lrn_frames"
+#  bottom: "rgb_frames"
+#  include: {
+#    phase: TEST
+#  }
+#}
+

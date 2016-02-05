@@ -42,41 +42,6 @@ layer {
   }
   include: {phase: TRAIN}
 }
-#layer {
-#  name: "data"
-#  type: "HDF5Data"
-#  top: "demos"
-#  hdf5_data_param {
-#    source: "examples/vgps/demos_ioc.txt"
-#    batch_size: 5  # Must be same as slice point
-#  }
-#  include: { phase: TRAIN }
-#}
-#layer {
-#  name: "data"
-#  type: "HDF5Data"
-#  top: "samples"
-#  top: "rgb_frames"
-#  hdf5_data_param {
-#    source: "examples/vgps/samples_ioc.txt"
-#    batch_size: 10
-#  }
-#  include: { phase: TRAIN }
-#}
-#layer {
-#  name: "data"
-#  type: "HDF5Data"
-#  top: "position"
-#  top: "rgb_frames"
-#  hdf5_data_param {
-#    source: "examples/vgps/train_pose.txt"
-#    batch_size: 10
-#  }
-#  include: {
-#    phase: TEST
-#    stage: 'test-on-train'
-#  }
-#}
 
 layer {
   name: "demo_sample_concat"
@@ -103,11 +68,13 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 40
+    num_output: 52
     axis: 2  # Input is NxTxF
     weight_filler {
-      type: "gaussian"
-      std: 0.01
+      type: "identity"
+      identity_option: "both"
+      #type: "gaussian"
+      #std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -121,15 +88,6 @@ layer {
   bottom: "enc1"
   top: "enc1"
 }
-#layer {
-#  name: "drop1"
-#  type: "Dropout"
-#  bottom: "enc1"
-#  top: "enc1"
-#  dropout_param {
-#  dropout_ratio: 0.2
-#  }
-#}
 
 layer {
   name: "fc_enc2"
@@ -145,11 +103,13 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 40
+    num_output: 52
     axis: 2  # Input is NxTxF
     weight_filler {
-      type: "gaussian"
-      std: 0.01
+      type: "identity"
+      identity_option: "positive"
+      #type: "gaussian"
+      #std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -423,9 +383,9 @@ layer {
   bottom: "demo_costdiff_reshape"
   top: "monotonic_loss"
   hinge_loss_param {
-    norm: L1
+    norm: L2
   }
-  loss_weight: 1.0 #0.0000000001
+  loss_weight: 100.0 #0.0000000001
 }
 # Regularization Loss
 

@@ -6,7 +6,7 @@ layer {
   memory_data_param {
     input_shapes {
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 4  # dimension of phi
       dim: 1
       dim: 1
     }
@@ -17,11 +17,11 @@ layer {
 layer {
   name: "test_data_in"
   type: "MemoryData"
-  top: "enc_all"
+  top: "all_traj"
   memory_data_param {
     input_shapes {
       dim: 100  # T
-      dim: 100  # dimension of Dy
+      dim: 4  # dimension of Dy
       dim: 1
       dim: 1
     }
@@ -29,39 +29,9 @@ layer {
   include: {phase:TEST}
 }
 layer {
-  name: "fc_enc3"
+  name: "fc_enc1"
   type: "InnerProduct"
-  bottom: "data_in"
-  top: "enc_all"
-  param {
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 100
-    axis: 1  # Input is TxF
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-  include: {phase: FORWARDA}
-  include: {phase:TRAIN}
-  loss_weight: 0.1
-}
-
-layer {
-  name: "fc1"
-  type: "InnerProduct"
-  bottom: "enc_all"
+  bottom: "all_traj"
   top: "Ax"
   param {
     lr_mult: 1
@@ -72,11 +42,11 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
-    axis: 1  # Input is TxF
+    num_output: 4 # dimension of phi
+    axis: 1  # Input is NxTxF
     weight_filler {
       type: "gaussian"
-      std: 0.01
+      std: 0.1
     }
     bias_filler {
       type: "constant"
@@ -104,7 +74,7 @@ layer {
   bottom: "AxAx"
   top: "all_cost"
   param {
-    lr_mult: 1
+    lr_mult: 0
     decay_mult: 0
   }
   param {

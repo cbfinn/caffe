@@ -42,6 +42,41 @@ layer {
   }
   include: {phase: TRAIN}
 }
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "demos"
+#  hdf5_data_param {
+#    source: "examples/vgps/demos_ioc.txt"
+#    batch_size: 5  # Must be same as slice point
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "samples"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/samples_ioc.txt"
+#    batch_size: 10
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "position"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/train_pose.txt"
+#    batch_size: 10
+#  }
+#  include: {
+#    phase: TEST
+#    stage: 'test-on-train'
+#  }
+#}
 
 layer {
   name: "demo_sample_concat"
@@ -54,11 +89,93 @@ layer {
   }
 }
 
+layer {
+  name: "fc_enc1"
+  type: "InnerProduct"
+  bottom: "all_traj"
+  top: "enc1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "enc1"
+  top: "enc1"
+}
+#layer {
+#  name: "drop1"
+#  type: "Dropout"
+#  bottom: "enc1"
+#  top: "enc1"
+#  dropout_param {
+#  dropout_ratio: 0.2
+#  }
+#}
 
+layer {
+  name: "fc_enc2"
+  type: "InnerProduct"
+  bottom: "enc1"
+  top: "enc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "enc2"
+  top: "enc2"
+}
+#layer {
+#  name: "drop1"
+#  type: "Dropout"
+#  bottom: "enc2"
+#  top: "enc2"
+#  dropout_param {
+#  dropout_ratio: 0.2
+#  }
+#}
 layer {
   name: "fc_enc3"
   type: "InnerProduct"
-  bottom: "all_traj"
+  bottom: "enc2"
   top: "enc_all"
   param {
     lr_mult: 1
@@ -220,14 +337,52 @@ layer {
     coeff: -1
   }
 }
+#layer {
+#  name: "inv_demo_0"
+#  type: "Power"
+#  bottom: "demo+0_cost"
+#  top: "demo+0_cost_inv"
+#  power_param {
+#    power: -1
+#    shift: 0.1
+#  }
+#}
+#layer {
+#  name: "demo_t+1-demo_t"
+#  type: "Eltwise"
+#  bottom: "demo_cost_diff1"
+#  bottom: "demo+0_cost_inv"
+#  top: "demo_cost_diff1"
+#  eltwise_param {
+#    operation: PROD
+#  }
+#}
+#layer {
+#  name: "demo_t+1-demo_t"
+#  type: "Eltwise"
+#  bottom: "demo_cost_diff-1"
+#  bottom: "demo+0_cost_inv"
+#  top: "demo_cost_diff-1"
+#  eltwise_param {
+#    operation: PROD
+#  }
+#}
 
+#layer {
+#  name: "slow_l1_reg_loss"
+#  type: "L1Loss"
+#  bottom: "cost_diff1"
+#  bottom: "cost_diff-1"
+#  top: "slow_l1_loss"
+#  loss_weight: 0
+#}
 layer {
   name: "slow_l2_reg_loss"
   type: "EuclideanLoss"
   bottom: "cost_diff1"
   bottom: "cost_diff-1"
   top: "slow_l2_loss"
-  loss_weight: 0.1 # 0.1
+  loss_weight: 0 # 0.1
 }
 layer {
   name: "demo_sample_diffslice"
@@ -244,7 +399,7 @@ layer {
   name: "reshape_costdiff"
   type: "Reshape"
   bottom: "demo_costdiff"
-  top: "demo_costdiff_reshape"
+  top: "demo_costdiff"
   reshape_param {
     shape {
       dim: -1
@@ -263,16 +418,53 @@ layer {
   bottom: "sample_costdiff"
 }
 layer {
+  name: "dummy_label"
+  type: "DummyData"
+  top: "hinge_label"
+  dummy_data_param {
+    data_filler {
+      type: 'constant'
+      value: 0
+    }
+    shape {
+      dim: 490 # 5*98
+      dim: 1
+    }
+  }
+}
+layer {
   name: "monotonic_loss"
   type: "HingeLoss"
-  bottom: "demo_costdiff_reshape"
+  bottom: "demo_costdiff"
+  bottom: "hinge_label"
   top: "monotonic_loss"
   hinge_loss_param {
-    norm: L2
+    norm: L1
   }
-  loss_weight: 100.0 #0.0000000001
+  loss_weight: 0 #0.1 #0.1 #0.0000000001
 }
 # Regularization Loss
+
+## Make an input of all zeros
+layer {
+  name: "zeros"
+  type: "Power"
+  bottom: "Ax"
+  top: "zeros"
+  power_param {
+    scale: 0
+    power: 1
+    shift: 0
+  }
+}
+layer {
+  name: "reg_loss"
+  type: "EuclideanLoss"
+  bottom: "Ax"
+  bottom: "zeros"
+  top: "reg_loss"
+  loss_weight: 0 #1e-4
+}
 
 layer {
   name: "loss"

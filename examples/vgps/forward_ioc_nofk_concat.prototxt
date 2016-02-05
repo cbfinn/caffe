@@ -6,7 +6,7 @@ layer {
   memory_data_param {
     input_shapes {
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 14  # dimension of phi
       dim: 1
       dim: 1
     }
@@ -17,7 +17,7 @@ layer {
 layer {
   name: "test_data_in"
   type: "MemoryData"
-  top: "enc_all"
+  top: "Y"
   memory_data_param {
     input_shapes {
       dim: 100  # T
@@ -29,10 +29,10 @@ layer {
   include: {phase:TEST}
 }
 layer {
-  name: "fc_enc3"
+  name: "fc_enc1"
   type: "InnerProduct"
   bottom: "data_in"
-  top: "enc_all"
+  top: "enc1"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -42,7 +42,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 40
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
@@ -55,13 +55,118 @@ layer {
   }
   include: {phase: FORWARDA}
   include: {phase:TRAIN}
+  propagate_down: 1
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "enc1"
+  top: "enc1"
+  include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  propagate_down: 1
+}
+layer {
+  name: "fc_enc2"
+  type: "InnerProduct"
+  bottom: "enc1"
+  top: "enc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 1  # Input is TxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  propagate_down: 1
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "enc2"
+  top: "enc2"
+  include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  propagate_down: 1
+}
+layer {
+  name: "fc_enc3"
+  type: "InnerProduct"
+  bottom: "enc2"
+  top: "enc_all"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 86
+    axis: 1  # Input is TxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  propagate_down: 1
+}
+layer {
+  name: "reshape_alltraj"
+  type: "Reshape"
+  bottom: "data_in"
+  top: "all_traj_reshape"
+  reshape_param {
+    shape {
+      dim: 100
+      dim: 14
+    }
+  }
+  include: {phase: FORWARDA}
+  include: {phase:TRAIN}
+  propagate_down: 1
+}
+layer {
+  name: "traj_feat_concat"
+  type: "Concat"
+  bottom: "all_traj_reshape"
+  bottom: "enc_all"
+  top: "Y"
+  concat_param {
+    axis: 1
+  }
+  include: {phase: FORWARDA}
+  include: {phase:TRAIN}
   loss_weight: 0.1
 }
+
 
 layer {
   name: "fc1"
   type: "InnerProduct"
-  bottom: "enc_all"
+  bottom: "Y"
   top: "Ax"
   param {
     lr_mult: 1

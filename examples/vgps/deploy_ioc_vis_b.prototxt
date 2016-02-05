@@ -1,0 +1,413 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  # Input is NxTxF
+  name: "forward_cost"
+  type: "MemoryData"
+  top: "cost_features"
+  memory_data_param {
+    input_shapes {
+      dim: 1
+      dim: 100  # T
+      dim: 96  # 32joint state+64fp
+      dim: 1
+    }
+  }
+  include: {phase:TEST}
+}
+layer {
+  # Input is NxTxF
+  name: "state_data"
+  type: "MemoryData"
+  top: "all_states"
+  memory_data_param {
+    input_shapes {
+      dim: 100 # T
+      dim: 32  # 32joint state+64fp
+      dim: 1
+      dim: 1
+    }
+  }
+  include: {phase:FORWARDA}
+}
+layer {
+  name: "image_data"
+  type: "ImageData"
+  top: "all_images"
+  image_data_param {
+    source: "img_database_temp/demo_ioc_images.txt"
+    batch_size: 100
+  }
+  # batch_size: 100 # not sure where is better.
+  include: {phase: FORWARDA}
+}
+layer {
+  # Input is NxTxF
+  name: "data_in_demos"
+  type: "MemoryData"
+  top: "demo_cost_features"
+  top: "demo_logis"
+  memory_data_param {
+    input_shapes {
+      dim: 10  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 96  # 64+32, dimension of phi
+      dim: 1
+    }
+    input_shapes {
+      dim: 10  # batch size, must be same as slice point
+      dim: 1
+      dim: 1
+      dim: 1
+    }
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  name: "data_in_samples"
+  type: "MemoryData"
+  top: "sample_cost_features"
+  top: "sample_logis"
+  memory_data_param {
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 96  # 64+32, dimension of phi
+      dim: 1
+    }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 1
+      dim: 1
+      dim: 1
+     }
+  }
+  include: {phase: TRAIN}
+}
+# No images in training yet.
+#layer {
+#  name: "demo_img_data"
+#  type: "ImageData"
+#  top: "demo_images"
+#  image_data_param {
+#    source: "img_database_temp/demo_ioc_images.txt"
+#    batch_size: 1000  # Must be same as slice point and demo batch size*100
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "sample_img_data"
+#  type: "ImageData"
+#  top: "sample_images"
+#  image_data_param {
+#    source: "img_database_temp/sample_ioc_images.txt"
+#    batch_size: 500  # Must be same as slice point and demo batch size*100
+#  }
+#  include: {phase: TRAIN}
+#}
+layer {
+  name: "concat_states"
+  type: "Concat"
+  bottom: "demo_cost_features"
+  bottom: "sample_cost_features"
+  top: "cost_features"
+  concat_param {
+    axis: 0
+  }
+  include: { phase: TRAIN }
+}
+
+## START: FORWARDA NETWORK ##
+# Image Processing Layers
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "all_images"
+  top: "conv1"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv3"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "softmax"
+  type: "SpatialSoftmax"
+  bottom: "conv3"
+  top: "conv3"
+  spatial_softmax_param {
+    engine: CAFFE
+    temperature: 1.0
+  }
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "fc_images"
+  type: "InnerProduct"
+  bottom: "conv3"
+  top: "expected_xy"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
+    weight_filler {
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: { phase: FORWARDA}
+}
+layer {
+  name: "flatten_fp"
+  type: "Flatten"
+  bottom: "expected_xy"
+  top: "flat_xy"
+  include: {phase:FORWARDA}
+}
+layer {
+  name: "flatten_as"
+  type: "Flatten"
+  bottom: "all_states"
+  top: "flat_all_states"
+  include: {phase:FORWARDA}
+}
+layer {
+  name: "concat_features"
+  type: "Concat"
+  bottom: "flat_all_states"
+  bottom: "flat_xy"
+  top: "all_cost_features"
+  concat_param {
+    axis: 1
+  }
+  include: {phase:FORWARDA}
+}
+## END: FORWARDA NETWORK ##
+
+## START: TEST NETWORK ##
+# Affine cost layer
+layer {
+  name: "fc1"
+  type: "InnerProduct"
+  bottom: "cost_features"
+  top: "Ax"
+  param {
+    lr_mult: 1 # 1 for full cold start
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2 # 2 for full cold start
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 50 # What should this be??
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+  include: {phase: TRAIN}
+}
+layer {
+  name: "dotproduct1"
+  type: "Eltwise"
+  bottom: "Ax"
+  bottom: "Ax"
+  top: "AxAx"
+  eltwise_param {
+    operation: PROD
+  }
+  include: {phase:TEST}
+  include: {phase: TRAIN}
+}
+layer {
+  name: "fc_sum"
+  type: "InnerProduct"
+  bottom: "AxAx"
+  top: "2x_allcost"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1  # Output is 2x cost for every time step - NxT
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "constant"
+      value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+  include: {phase:TEST}
+  include: {phase:TRAIN}
+}
+## END: TEST NETWORK ##
+
+## START: EXTRA TRAIN LAYERS ##
+layer {
+  name: "demo_sample_slice"
+  type: "Slice"
+  bottom: "2x_allcost"
+  top: "demo_cost"
+  top: "sample_cost"
+  slice_param {
+    axis: 0
+    slice_point: 10 # Needs to be equal to demo batch size.
+  }
+  include: {phase:TRAIN}
+}
+layer {
+  name: "loss"
+  type: "IOCLoss"
+  bottom: "demo_cost"
+  bottom: "sample_cost"
+  bottom: "demo_logis"
+  bottom: "sample_logis"
+  top: "ioc_loss"
+  loss_weight: 1 # Used 1 for demo batch size of 10.
+  include: {phase:TRAIN}
+}
+# Regularization Loss
+## Make an input of all zeros
+layer {
+  name: "zeros"
+  type: "Power"
+  bottom: "Ax"
+  top: "zeros"
+  power_param {
+    scale: 0
+    power: 1
+    shift: 0
+  }
+  include: {phase:TRAIN}
+}
+layer {
+  name: "reg_loss"
+  type: "EuclideanLoss"
+  bottom: "Ax"
+  bottom: "zeros"
+  top: "reg_loss"
+  loss_weight: 1e-4
+  include: {phase:TRAIN}
+}
+## END: EXTRA TRAIN LAYERS ##
+

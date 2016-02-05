@@ -5,33 +5,83 @@ layer {
   top: "data_in"
   memory_data_param {
     input_shapes {
+    #  dim: 1 # batch size
       dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
       dim: 1
     }
   }
-  include: {phase:FORWARDA}
-  include: {phase:TRAIN} # TRAIN is for computing jacobians
+  #include: {phase: TEST}
 }
 layer {
-  name: "test_data_in"
-  type: "MemoryData"
-  top: "enc_all"
-  memory_data_param {
-    input_shapes {
-      dim: 100  # T
-      dim: 100  # dimension of Dy
-      dim: 1
-      dim: 1
+  name: "fc_enc1"
+  type: "InnerProduct"
+  bottom: "data_in"
+  top: "enc1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 1  # Input is TxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
     }
   }
-  include: {phase:TEST}
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "enc1"
+  top: "enc1"
+}
+layer {
+  name: "fc_enc2"
+  type: "InnerProduct"
+  bottom: "enc1"
+  top: "enc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 40
+    axis: 1  # Input is TxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "enc2"
+  top: "enc2"
 }
 layer {
   name: "fc_enc3"
   type: "InnerProduct"
-  bottom: "data_in"
+  bottom: "enc2"
   top: "enc_all"
   param {
     lr_mult: 1
@@ -42,7 +92,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 26
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
@@ -53,26 +103,23 @@ layer {
       value: 0
     }
   }
-  include: {phase: FORWARDA}
-  include: {phase:TRAIN}
-  loss_weight: 0.1
 }
 
 layer {
-  name: "fc1"
+  name: "fc1_dontcopy"
   type: "InnerProduct"
   bottom: "enc_all"
   top: "Ax"
   param {
-    lr_mult: 1
+    lr_mult: 2
     decay_mult: 1
   }
   param {
-    lr_mult: 2
+    lr_mult: 4
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 26
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
@@ -83,7 +130,7 @@ layer {
       value: 0
     }
   }
-  include: {phase:TEST}
+  exclude: {phase: FORWARDA}
 }
 
 layer {
@@ -95,7 +142,7 @@ layer {
   eltwise_param {
     operation: PROD
   }
-  include: {phase:TEST}
+  exclude: {phase: FORWARDA}
 }
 
 layer {
@@ -104,11 +151,11 @@ layer {
   bottom: "AxAx"
   top: "all_cost"
   param {
-    lr_mult: 1
+    lr_mult: 0
     decay_mult: 0
   }
   param {
-    lr_mult: 2
+    lr_mult: 0
     decay_mult: 0
   }
   inner_product_param {
@@ -123,5 +170,5 @@ layer {
       value: 0
     }
   }
-  include: {phase:TEST}
+  exclude: {phase: FORWARDA}
 }

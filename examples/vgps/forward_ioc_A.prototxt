@@ -5,63 +5,19 @@ layer {
   top: "data_in"
   memory_data_param {
     input_shapes {
+    #  dim: 1 # batch size
       dim: 100  # T
       dim: 26  # dimension of phi
       dim: 1
       dim: 1
     }
   }
-  include: {phase:FORWARDA}
-  include: {phase:TRAIN} # TRAIN is for computing jacobians
+  include: {phase: TEST}
 }
-layer {
-  name: "test_data_in"
-  type: "MemoryData"
-  top: "enc_all"
-  memory_data_param {
-    input_shapes {
-      dim: 100  # T
-      dim: 100  # dimension of Dy
-      dim: 1
-      dim: 1
-    }
-  }
-  include: {phase:TEST}
-}
-layer {
-  name: "fc_enc3"
-  type: "InnerProduct"
-  bottom: "data_in"
-  top: "enc_all"
-  param {
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 100
-    axis: 1  # Input is TxF
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-  include: {phase: FORWARDA}
-  include: {phase:TRAIN}
-  loss_weight: 0.1
-}
-
 layer {
   name: "fc1"
   type: "InnerProduct"
-  bottom: "enc_all"
+  bottom: "data_in"
   top: "Ax"
   param {
     lr_mult: 1
@@ -72,7 +28,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 26
     axis: 1  # Input is TxF
     weight_filler {
       type: "gaussian"
@@ -83,7 +39,6 @@ layer {
       value: 0
     }
   }
-  include: {phase:TEST}
 }
 
 layer {
@@ -95,7 +50,6 @@ layer {
   eltwise_param {
     operation: PROD
   }
-  include: {phase:TEST}
 }
 
 layer {
@@ -104,11 +58,11 @@ layer {
   bottom: "AxAx"
   top: "all_cost"
   param {
-    lr_mult: 1
+    lr_mult: 0
     decay_mult: 0
   }
   param {
-    lr_mult: 2
+    lr_mult: 0
     decay_mult: 0
   }
   inner_product_param {
@@ -123,5 +77,4 @@ layer {
       value: 0
     }
   }
-  include: {phase:TEST}
 }

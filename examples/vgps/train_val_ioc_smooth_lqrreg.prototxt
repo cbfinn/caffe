@@ -5,6 +5,7 @@ layer {
   type: "MemoryData"
   top: "demos"
   top: "dlogis"
+  top: "dlqr_cost"
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
@@ -15,6 +16,12 @@ layer {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 1
+      dim: 1
+      dim: 1
+    }
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
       dim: 1
       dim: 1
     }
@@ -26,6 +33,7 @@ layer {
   type: "MemoryData"
   top: "samples"
   top: "slogis"
+  top: "slqr_cost"
   memory_data_param {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
@@ -36,6 +44,12 @@ layer {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 1
+      dim: 1
+      dim: 1
+    }
+    input_shapes {
+      dim: 5 # batch size
+      dim: 100 # T
       dim: 1
       dim: 1
     }
@@ -53,12 +67,89 @@ layer {
     axis: 0
   }
 }
+layer {
+  name: "demo_sample_lqr_concat"
+  type: "Concat"
+  bottom: "dlqr_cost"
+  bottom: "slqr_cost"
+  top: "all_lqr_cost"
+  concat_param {
+    axis: 0
+  }
+}
+layer {
+  name: "fc_enc1"
+  type: "InnerProduct"
+  bottom: "all_traj"
+  top: "enc1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 52
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "identity"
+      identity_option: "both"
+      #type: "gaussian"
+      #std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "enc1"
+  top: "enc1"
+}
 
-
+layer {
+  name: "fc_enc2"
+  type: "InnerProduct"
+  bottom: "enc1"
+  top: "enc2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 52
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "identity"
+      identity_option: "positive"
+      #type: "gaussian"
+      #std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "enc2"
+  top: "enc2"
+}
 layer {
   name: "fc_enc3"
   type: "InnerProduct"
-  bottom: "all_traj"
+  bottom: "enc2"
   top: "enc_all"
   param {
     lr_mult: 1
@@ -272,7 +363,64 @@ layer {
   }
   loss_weight: 100.0 #0.0000000001
 }
+
 # Regularization Loss
+layer {
+  name: "fc_lqr_enc"
+  type: "InnerProduct"
+  bottom: "all_lqr_cost"
+  top: "all_lqr_plus"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "identity"
+      identity_option: "positive"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "demo_lqr_reg"
+  type: "EuclideanLoss"
+  bottom: "all_cost"
+  bottom: "all_lqr_plus"
+  top: "all_lqrreg_cost"
+  loss_weight: 1e-7
+}
+
+
+#layer {
+#  name: "cost_lqr_mult"
+#  type: "Eltwise"
+#  bottom: "slqr_ecost_reshape"
+#  bottom: "sample_cost"
+#  top: "weighted_sample_cost"
+#  eltwise_param {
+#    operation: PROD
+#  }
+#}
+#layer {
+#  name: "lqr_samplecost_reg"
+#  type: "HingeLoss"
+#  bottom: "weighted_sample_cost"
+#  top: "lqr_reg_loss"
+#  hinge_loss_param {
+#    norm: L2
+#  }
+#  loss_weight: 0.001
+#}
 
 layer {
   name: "loss"

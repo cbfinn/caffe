@@ -1,0 +1,176 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  # Input is NxTxF
+  name: "data_in_demos"
+  type: "MemoryData"
+  top: "demos"
+  memory_data_param {
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 26  # dimension of phi
+      dim: 1
+    }
+  }
+  include: {phase: TRAIN}
+}
+layer {
+  name: "data_in_samples"
+  type: "MemoryData"
+  top: "samples"
+  memory_data_param {
+    input_shapes {
+      dim: 5  # batch size, must be same as slice point
+      dim: 100  # T
+      dim: 26  # dimension of phi
+      dim: 1
+    }
+  }
+  include: {phase: TRAIN}
+}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "demos"
+#  hdf5_data_param {
+#    source: "examples/vgps/demos_ioc.txt"
+#    batch_size: 5  # Must be same as slice point
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "samples"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/samples_ioc.txt"
+#    batch_size: 10
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "position"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/train_pose.txt"
+#    batch_size: 10
+#  }
+#  include: {
+#    phase: TEST
+#    stage: 'test-on-train'
+#  }
+#}
+
+layer {
+  name: "demo_sample_concat"
+  type: "Concat"
+  bottom: "demos"
+  bottom: "samples"
+  top: "all_traj"
+  concat_param {
+    axis: 0
+  }
+}
+
+layer {
+  name: "fc1"
+  type: "InnerProduct"
+  bottom: "all_traj"
+  top: "Ax"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 26
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+layer {
+  name: "dotproduct1"
+  type: "Eltwise"
+  bottom: "Ax"
+  bottom: "Ax"
+  top: "AxAx"
+  eltwise_param {
+    operation: PROD
+  }
+}
+
+layer {
+  name: "fc_sum"
+  type: "InnerProduct"
+  bottom: "AxAx"
+  top: "all_cost"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1  # Output is cost for every time step - NxT
+    axis: 2  # Input is NxTxF
+    weight_filler {
+      type: "constant"
+      value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "demo_sample_slice"
+  type: "Slice"
+  bottom: "all_cost"
+  top: "demo_cost"
+  top: "sample_cost"
+  slice_param {
+    axis: 0
+    slice_point: 5 # Needs to be equal to demo batch size.
+  }
+}
+
+
+layer {
+  name: "loss"
+  type: "IOCLoss"
+  bottom: "demo_cost"
+  bottom: "sample_cost"
+  top: "ioc_loss"
+  loss_weight: 1
+}
+
+#layer {
+#  name: "output_lrn"
+#  type: HDF5_OUTPUT
+#  hdf5_output_param {
+#    file_name: "examples/vgps/data/lrn_output_exposure.h5"
+#  }
+#  bottom: "lrn_frames"
+#  bottom: "rgb_frames"
+#  include: {
+#    phase: TEST
+#  }
+#}
+

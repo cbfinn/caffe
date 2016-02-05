@@ -9,7 +9,7 @@ layer {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 12  # dimension of phi
       dim: 1
     }
     input_shapes {
@@ -19,7 +19,6 @@ layer {
       dim: 1
     }
   }
-  include: {phase: TRAIN}
 }
 layer {
   name: "data_in_samples"
@@ -30,7 +29,7 @@ layer {
     input_shapes {
       dim: 5  # batch size, must be same as slice point
       dim: 100  # T
-      dim: 26  # dimension of phi
+      dim: 12  # dimension of phi
       dim: 1
     }
     input_shapes {
@@ -40,7 +39,6 @@ layer {
       dim: 1
     }
   }
-  include: {phase: TRAIN}
 }
 
 layer {
@@ -53,7 +51,6 @@ layer {
     axis: 0
   }
 }
-
 
 layer {
   name: "fc_enc3"
@@ -69,7 +66,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 20
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -97,7 +94,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
+    num_output: 20
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -269,10 +266,10 @@ layer {
   top: "monotonic_loss"
   hinge_loss_param {
     norm: L2
+    offset: 1.0
   }
   loss_weight: 100.0 #0.0000000001
 }
-# Regularization Loss
 
 layer {
   name: "loss"
@@ -282,5 +279,8 @@ layer {
   bottom: "dlogis"
   bottom: "slogis"
   top: "ioc_loss"
+  ioc_loss_param {
+    append_demos: true
+  }
   loss_weight: 1.0 # Used 1 for most things, needs to be more for subsampled
 }

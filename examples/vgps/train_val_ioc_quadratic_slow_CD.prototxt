@@ -42,6 +42,41 @@ layer {
   }
   include: {phase: TRAIN}
 }
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "demos"
+#  hdf5_data_param {
+#    source: "examples/vgps/demos_ioc.txt"
+#    batch_size: 5  # Must be same as slice point
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "samples"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/samples_ioc.txt"
+#    batch_size: 10
+#  }
+#  include: { phase: TRAIN }
+#}
+#layer {
+#  name: "data"
+#  type: "HDF5Data"
+#  top: "position"
+#  top: "rgb_frames"
+#  hdf5_data_param {
+#    source: "examples/vgps/train_pose.txt"
+#    batch_size: 10
+#  }
+#  include: {
+#    phase: TEST
+#    stage: 'test-on-train'
+#  }
+#}
 
 layer {
   name: "demo_sample_concat"
@@ -54,12 +89,11 @@ layer {
   }
 }
 
-
 layer {
-  name: "fc_enc3"
+  name: "fc_enc1"
   type: "InnerProduct"
   bottom: "all_traj"
-  top: "enc_all"
+  top: "Ax"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -69,35 +103,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 100
-    axis: 2  # Input is NxTxF
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-
-
-layer {
-  name: "fc1"
-  type: "InnerProduct"
-  bottom: "enc_all"
-  top: "Ax"
-  param {
-    lr_mult: 1 # 1 for full cold start
-    decay_mult: 1
-  }
-  param {
-    lr_mult: 2 # 2 for full cold start
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 100
+    num_output: 26 # dimension of phi
     axis: 2  # Input is NxTxF
     weight_filler {
       type: "gaussian"
@@ -156,6 +162,21 @@ layer {
   slice_param {
     axis: 0
     slice_point: 5 # Needs to be equal to demo batch size.
+  }
+}
+
+# Regularization Loss
+
+## Make an input of all zeros
+layer {
+  name: "zeros"
+  type: "Power"
+  bottom: "Ax"
+  top: "zeros"
+  power_param {
+    scale: 0
+    power: 1
+    shift: 0
   }
 }
 
@@ -220,7 +241,6 @@ layer {
     coeff: -1
   }
 }
-
 layer {
   name: "slow_l2_reg_loss"
   type: "EuclideanLoss"
@@ -230,49 +250,44 @@ layer {
   loss_weight: 0.1 # 0.1
 }
 layer {
-  name: "demo_sample_diffslice"
-  type: "Slice"
-  bottom: "cost_diff1"
-  top: "demo_costdiff"
-  top: "sample_costdiff"
-  slice_param {
-    axis: 0
-    slice_point: 5 # Needs to be equal to demo batch size.
-  }
-}
-layer {
-  name: "reshape_costdiff"
-  type: "Reshape"
-  bottom: "demo_costdiff"
-  top: "demo_costdiff_reshape"
-  reshape_param {
-    shape {
-      dim: -1
-      dim: 1
-      dim: 0
-    }
-  }
-}
-layer {
   name: "silence_layer"
   type: "Silence"
   bottom: "start_cost"
   bottom: "end_cost"
   bottom: "start_cost1"
   bottom: "end_cost1"
-  bottom: "sample_costdiff"
+}
+
+
+
+layer {
+  name: "reg_loss"
+  type: "EuclideanLoss"
+  bottom: "Ax"
+  bottom: "zeros"
+  top: "reg_loss"
+  loss_weight: 1e-4 #1e-6
 }
 layer {
-  name: "monotonic_loss"
-  type: "HingeLoss"
-  bottom: "demo_costdiff_reshape"
-  top: "monotonic_loss"
-  hinge_loss_param {
-    norm: L2
+  name: "demo-sample"
+  type: "Eltwise"
+  bottom: "demo_cost"
+  bottom: "sample_cost"
+  top: "obj"
+  eltwise_param {
+    operation: SUM
+    coeff: 1 # Assuming that there are equal number of demos and samples
+    coeff: -1
   }
-  loss_weight: 100.0 #0.0000000001
 }
-# Regularization Loss
+layer {
+  name: "CDloss"
+  type: "SumLoss"
+  bottom: "obj"
+  top: "cd_gradcomp"
+  loss_weight: 1.0
+}
+
 
 layer {
   name: "loss"
@@ -282,5 +297,5 @@ layer {
   bottom: "dlogis"
   bottom: "slogis"
   top: "ioc_loss"
-  loss_weight: 1.0 # Used 1 for most things, needs to be more for subsampled
+  loss_weight: 0.0 # Used 1 for most things, needs to be more for subsampled
 }
