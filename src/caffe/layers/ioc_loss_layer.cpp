@@ -44,6 +44,8 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* dlogis = bottom[2]->cpu_data();
   const Dtype* slogis = bottom[3]->cpu_data();
 
+  bool append_demos = this->layer_param_.ioc_loss_param().append_demos();
+
   // Sum over time and compute max value for safe logsum.
   for (int i = 0; i < nd_; ++i) {
     dc[i] = 0.0;
@@ -68,13 +70,14 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     if (-sc[i] > max_val_) max_val_ = -sc[i];
   }
 
-  for (int i = 0; i < nd_; ++i) {
-    if (-dc[i] > max_val_) max_val_ = -dc[i];
-  }
-
   // Do a safe log-sum-exp operation.
-  for (int i = 0; i < nd_; ++i) {
-    dc[i] = -dc[i] - max_val_;
+  if (append_demos) {
+    for (int i = 0; i < nd_; ++i) {
+        if (-dc[i] > max_val_) max_val_ = -dc[i];
+    }
+    for (int i = 0; i < nd_; ++i) {
+        dc[i] = -dc[i] - max_val_;
+    }
   }
   for (int i = 0; i < ns_; ++i) {
     sc[i] = -sc[i] - max_val_;
@@ -96,28 +99,30 @@ void IOCLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     //avg_sc[i] += sc[i];
   //}
 
-  if (iteration_ % 100 == 0 && iteration_ != 0) {
-    float ess_num = 0.0;
-    float ess_denom = 0.0;
-    for (int i = 0; i < ns_; ++i) {
-        ess_num += sc[i];
-        ess_denom += sc[i]*sc[i];
-        //avg_sc[i] = 0;
-    }
-    for (int i = 0; i < ns_; ++i) {
-        ess_num += dc[i];
-        ess_denom += dc[i]*dc[i];
-        //avg_dc[i] = 0;
-    }
-    float ess = ess_num*ess_num/ess_denom;
-    LOG(INFO) << "Iteration: " << iteration_;
-    LOG(INFO) << "ESS: " << ess;
-  }
+  //if (iteration_ % 100 == 0 && iteration_ != 0) {
+    //float ess_num = 0.0;
+    //float ess_denom = 0.0;
+    //for (int i = 0; i < ns_; ++i) {
+        //ess_num += sc[i];
+        //ess_denom += sc[i]*sc[i];
+        ////avg_sc[i] = 0;
+    //}
+    //for (int i = 0; i < ns_; ++i) {
+        //ess_num += dc[i];
+        //ess_denom += dc[i]*dc[i];
+        ////avg_dc[i] = 0;
+    //}
+    //float ess = ess_num*ess_num/ess_denom;
+    //LOG(INFO) << "Iteration: " << iteration_;
+    //LOG(INFO) << "ESS: " << ess;
+  //}
   // TODO - do something with this ess calculation. (Maybe calculate it in solver after fwd/bwd pass? Maybe print here?
 
 
   partition_ = 0.0;
-  for (int i = 0; i < nd_; ++i) partition_ += dc[i];
+  if (append_demos) {
+    for (int i = 0; i < nd_; ++i) partition_ += dc[i];
+  }
   for (int i = 0; i < ns_; ++i) partition_ += sc[i];
 
   loss += log(partition_) + max_val_;
@@ -133,13 +138,17 @@ void IOCLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   const Dtype loss_weight = 0.5*top[0]->cpu_diff()[0];
   const Dtype* dc = demo_counts_.cpu_data();
   const Dtype* sc = sample_counts_.cpu_data();
+  bool append_demos = this->layer_param_.ioc_loss_param().append_demos();
   // Compute gradient w.r.t. demos
   Dtype* demo_bottom_diff = bottom[0]->mutable_cpu_diff();
   Dtype* sample_bottom_diff = bottom[1]->mutable_cpu_diff();
 
   for (int i = 0; i < nd_; ++i) {
     for (int t = 0; t < T_; ++t) {
-      demo_bottom_diff[i*T_ + t] = (1.0 / (Dtype)nd_) - (dc[i] / partition_);
+      demo_bottom_diff[i*T_ + t] = (1.0 / (Dtype)nd_);
+      if (append_demos) {
+        demo_bottom_diff[i*T_+t] -= (dc[i] / partition_);
+      }
     }
   }
 

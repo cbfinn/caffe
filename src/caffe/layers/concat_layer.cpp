@@ -77,13 +77,13 @@ void ConcatLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   const int top_concat_axis = top[0]->shape(concat_axis_);
   for (int i = 0; i < bottom.size(); ++i) {
     const int bottom_concat_axis = bottom[i]->shape(concat_axis_);
-    if (propagate_down[i]) {
-      Dtype* bottom_diff = bottom[i]->mutable_cpu_diff();
-      for (int n = 0; n < num_concats_; ++n) {
-        caffe_copy(bottom_concat_axis * concat_input_size_, top_diff +
-            (n * top_concat_axis + offset_concat_axis) * concat_input_size_,
-            bottom_diff + n * bottom_concat_axis * concat_input_size_);
-      }
+    //if (propagate_down[i]) {
+    Dtype* bottom_diff = bottom[i]->mutable_cpu_diff();
+    for (int n = 0; n < num_concats_; ++n) {
+    caffe_copy(bottom_concat_axis * concat_input_size_, top_diff +
+        (n * top_concat_axis + offset_concat_axis) * concat_input_size_,
+        bottom_diff + n * bottom_concat_axis * concat_input_size_);
+    //}
     }
     offset_concat_axis += bottom_concat_axis;
   }
