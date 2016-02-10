@@ -466,6 +466,19 @@ static void set_weights_from_string(const mxArray* const proto_string) {
   net_->CopyTrainedLayersFrom(net_param);
 }
 
+static void set_weights_from_file(MEX_ARGS) {
+  if (nrhs != 1) {
+    ostringstream error_msg;
+    error_msg << "Only given " << nrhs << " arguments";
+    mex_error(error_msg.str());
+  }
+
+  char* model_file = mxArrayToString(prhs[0]);
+  net_->CopyTrainedLayersFrom(string(model_file));
+  mxFree(model_file);
+}
+
+
 // Returns cell array of weight arrays for each layer. *MUST BE CALLED AFTER TRAIN*
 static mxArray* get_weights_array() {
   NetParameter net_param;
@@ -1217,6 +1230,7 @@ static handler_registry handlers[] = {
   { "get_weights_string", get_weights_string     },
   { "get_weights_array",  get_weights_array     },
   { "set_weights",        set_weights     },
+  { "set_weights_from_file",        set_weights_from_file     },
   { "save_weights",       save_weights_to_file     },
   { "get_init_key",       get_init_key    },
   { "reset",              reset           },

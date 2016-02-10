@@ -18,6 +18,7 @@ void hdf5_load_nd_dataset_helper(
   int ndims;
   status = H5LTget_dataset_ndims(file_id, dataset_name_, &ndims);
   CHECK_GE(status, 0) << "Failed to get dataset ndims for " << dataset_name_;
+  //LOG(INFO) << "HDF5 dataset ndims: " << ndims;
   CHECK_GE(ndims, min_dim);
   CHECK_LE(ndims, max_dim);
 
@@ -29,9 +30,11 @@ void hdf5_load_nd_dataset_helper(
   CHECK_GE(status, 0) << "Failed to get dataset info for " << dataset_name_;
   CHECK_EQ(class_, H5T_FLOAT) << "Expected float or double data";
 
-  vector<int> blob_dims(dims.size());
-  for (int i = 0; i < dims.size(); ++i) {
-    blob_dims[i] = dims[i];
+  vector<int> blob_dims(dims.size()+1);
+  blob_dims[0] = 1;
+  for (int i = 1; i < dims.size()+1; ++i) {
+    blob_dims[i] = dims[i-1];
+    //LOG(INFO) << "HDF5 dataset dims " << i << ": " << dims[i-1];
   }
   blob->Reshape(blob_dims);
 }
