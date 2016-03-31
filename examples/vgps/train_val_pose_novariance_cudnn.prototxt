@@ -1,0 +1,258 @@
+name: "JointAndImageStateRegressionNet"
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "position"
+  top: "rgb_frames+0"
+  hdf5_data_param {
+    source: "../caffe/examples/vgps/train_pose_slow.txt"
+    batch_size: 25
+  }
+  include: { phase: TRAIN }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "position"
+  top: "rgb_frames+0"
+  hdf5_data_param {
+    source: "../caffe/examples/vgps/val_pose_slow.txt"
+    batch_size: 10
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-val'
+  }
+}
+layer {
+  name: "data"
+  type: "HDF5Data"
+  top: "position"
+  top: "rgb_frames+0"
+  hdf5_data_param {
+    source: "../caffe/examples/vgps/train_pose_slow.txt"
+    batch_size: 10
+  }
+  include: {
+    phase: TEST
+    stage: 'test-on-train'
+  }
+}
+
+# Image Processing Layers
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "rgb_frames+0"
+  top: "conv1"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 1 #2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+}
+
+
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 1 #2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
+}
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "conv2"
+  top: "conv3"
+  param {
+    lr_mult: 1
+    decay_mult: 2
+  }
+  param {
+    lr_mult: 1 #2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
+}
+layer {
+  name: "reshape"
+  type: "Reshape"
+  bottom: "conv3"
+  top: "conv3"
+  reshape_param {
+    shape {
+      dim: -1
+      dim: 1
+      dim: 109
+      dim: 109
+      #dim: 11881 #109*109
+      #dim: 1
+      #dim: 1
+    }
+  }
+}
+
+
+layer {
+  name: "softmax"
+  type: "Softmax"
+  bottom: "conv3"
+  top: "conv3"
+  softmax_param {
+    engine: CUDNN
+  }
+}
+layer {
+  name: "reshape"
+  type: "Reshape"
+  bottom: "conv3"
+  top: "conv3"
+  reshape_param {
+    shape {
+      dim: -1
+      dim: 32
+      dim: 109
+      dim: 109
+    }
+  }
+}
+layer {
+  name: "fc_images"
+  type: "InnerProduct"
+  bottom: "conv3"
+  top: "expected_xy"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 2  # dimensionality will actually be 2*num_channels
+    axis: -2
+    weight_filler {
+      type: "expectation"
+      expectation_option: "xy"
+      width: 109
+      height: 109
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+
+layer {
+  name: "fc1_smaller"
+  type: "InnerProduct"
+  bottom: "expected_xy"
+  top: "image_features_smaller"
+  param {
+    lr_mult: 5
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 5 #10
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 9
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "euc_distance"
+  type: "EuclideanDistance"
+  bottom: "image_features_smaller"
+  bottom: "position"
+  top: "average_distance"
+  include: {phase: TEST}
+}
+
+layer {
+  name: "loss"
+  type: "EuclideanLoss"
+  bottom: "image_features_smaller"
+  bottom: "position"
+  top: "euclidean_error"
+  loss_weight: 1
+}
+
